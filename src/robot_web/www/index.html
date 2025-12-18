@@ -26,7 +26,7 @@
 
         .tabs { display: flex; justify-content: center; padding: 6px 12px; background: #f5f5f7; }
         .tabs-inner { display: flex; gap: 2px; padding: 3px; background: rgba(0,0,0,0.06); border-radius: 8px; }
-        .tab { padding: 6px 16px; background: transparent; border: none; font-size: 12px; font-weight: 500; color: #1d1d1f; cursor: pointer; border-radius: 6px; }
+        .tab { padding: 6px 12px; background: transparent; border: none; font-size: 11px; font-weight: 500; color: #1d1d1f; cursor: pointer; border-radius: 6px; }
         .tab.active { background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
         .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -43,7 +43,7 @@
         .flex-1 { flex: 1; }
         .flex-2 { flex: 2; }
 
-        .camera-card { aspect-ratio: 16/9; min-height: 0; }
+        .camera-card { aspect-ratio: 4/3; min-height: 0; }
         .camera-card img { width: 100%; height: 100%; object-fit: contain; position: absolute; top: 0; left: 0; background: #000; }
 
         .lidar-card { min-height: 100px; }
@@ -66,15 +66,36 @@
         .mode-section { padding: 10px; }
         .mode-title { font-size: 10px; font-weight: 600; color: #86868b; text-transform: uppercase; margin-bottom: 8px; }
         .mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .mode-grid-4 { grid-template-columns: repeat(4, 1fr); }
         .mode-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; background: #f5f5f7; border: 2px solid transparent; border-radius: 10px; cursor: pointer; }
         .mode-btn.active { border-color: #007aff; background: rgba(0,122,255,0.08); }
+        .mode-btn.running { border-color: #34c759; background: rgba(52,199,89,0.08); }
         .mode-btn:active { transform: scale(0.96); }
         .mode-icon { font-size: 22px; }
         .mode-name { font-size: 10px; font-weight: 500; color: #1d1d1f; }
         .mode-btn.active .mode-name { color: #007aff; }
+        .mode-btn.running .mode-name { color: #34c759; }
+
         .current-mode { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: linear-gradient(135deg, #007aff, #5856d6); border-radius: 10px; }
         .current-mode span:first-child { font-size: 11px; color: rgba(255,255,255,0.7); }
         .current-mode span:last-child { font-size: 15px; font-weight: 600; color: #fff; }
+
+        .example-section { padding: 10px; }
+        .example-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+        .example-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px; background: #f5f5f7; border: none; border-radius: 10px; cursor: pointer; }
+        .example-btn:active { transform: scale(0.96); background: #e5e5ea; }
+        .example-btn.running { background: rgba(52,199,89,0.15); }
+        .example-icon { font-size: 24px; }
+        .example-name { font-size: 10px; font-weight: 500; color: #1d1d1f; }
+
+        .param-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+        .param-label { font-size: 11px; color: #86868b; min-width: 60px; }
+        .param-slider { flex: 1; height: 6px; -webkit-appearance: none; background: #e5e5ea; border-radius: 3px; }
+        .param-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: #5856d6; border-radius: 50%; cursor: pointer; }
+        .param-val { font-size: 11px; font-weight: 600; color: #5856d6; min-width: 40px; text-align: right; }
+
+        .stop-btn { width: 100%; padding: 14px; background: #ff3b30; border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+        .stop-btn:active { background: #d70015; }
 
         .map-card { flex: 1; min-height: 160px; }
         #mapDiv { width: 100%; height: 100%; }
@@ -112,7 +133,9 @@
         <nav class="tabs">
             <div class="tabs-inner">
                 <button class="tab active" data-page="control">Control</button>
-                <button class="tab" data-page="mode">Mode</button>
+                <button class="tab" data-page="example">Example</button>
+                <button class="tab" data-page="auto">Auto</button>
+                <button class="tab" data-page="ai">AI</button>
                 <button class="tab" data-page="map">Map</button>
             </div>
         </nav>
@@ -147,35 +170,102 @@
                 </div>
             </div>
 
-            <!-- Mode Page - layout like Control -->
-            <div class="page" id="page-mode">
+            <!-- Example Page -->
+            <div class="page" id="page-example">
                 <div class="card card-dark camera-card">
-                    <img id="modeCameraImg" src="" alt="">
-                    <div class="card-label">AI Camera</div>
+                    <img id="exCameraImg" src="" alt="">
+                    <div class="card-label">Camera</div>
+                </div>
+                <div class="card example-section flex-1">
+                    <div class="mode-title">Basic Movement</div>
+                    <div class="example-grid">
+                        <button class="example-btn" data-cmd="forward"><span class="example-icon">⬆️</span><span class="example-name">Forward</span></button>
+                        <button class="example-btn" data-cmd="backward"><span class="example-icon">⬇️</span><span class="example-name">Backward</span></button>
+                        <button class="example-btn" data-cmd="left"><span class="example-icon">↩️</span><span class="example-name">Turn L</span></button>
+                        <button class="example-btn" data-cmd="right"><span class="example-icon">↪️</span><span class="example-name">Turn R</span></button>
+                    </div>
+                    <div class="mode-title">Pattern Movement</div>
+                    <div class="example-grid">
+                        <button class="example-btn" data-cmd="square"><span class="example-icon">🔲</span><span class="example-name">Square</span></button>
+                        <button class="example-btn" data-cmd="triangle"><span class="example-icon">🔺</span><span class="example-name">Triangle</span></button>
+                        <button class="example-btn" data-cmd="circle"><span class="example-icon">⭕</span><span class="example-name">Circle</span></button>
+                        <button class="example-btn" data-cmd="stop"><span class="example-icon">🛑</span><span class="example-name">Stop</span></button>
+                    </div>
+                    <div class="mode-title">Parameters</div>
+                    <div class="param-row">
+                        <span class="param-label">Distance</span>
+                        <input type="range" class="param-slider" id="exDistance" min="0.5" max="3" step="0.1" value="1">
+                        <span class="param-val" id="exDistVal">1.0m</span>
+                    </div>
+                    <div class="param-row">
+                        <span class="param-label">Speed</span>
+                        <input type="range" class="param-slider" id="exSpeed" min="0.1" max="0.5" step="0.05" value="0.2">
+                        <span class="param-val" id="exSpeedVal">0.2</span>
+                    </div>
+                    <button class="stop-btn" id="exStopBtn">STOP</button>
+                </div>
+            </div>
+
+            <!-- Auto Page (Autonomous Driving) -->
+            <div class="page" id="page-auto">
+                <div class="card card-dark camera-card">
+                    <img id="autoCameraImg" src="" alt="">
+                    <div class="card-label">Auto Drive</div>
                     <div class="current-mode" style="position:absolute; bottom:8px; right:8px; width:auto;">
                         <span>Mode</span>
-                        <span id="currentModeValue">Manual</span>
+                        <span id="currentAutoMode">Manual</span>
                     </div>
                 </div>
                 <div class="row flex-1">
                     <div class="card card-dark lidar-card flex-1">
-                        <canvas id="modeLidarCanvas"></canvas>
+                        <canvas id="autoLidarCanvas"></canvas>
                         <div class="card-label">LiDAR</div>
                     </div>
                     <div class="card joystick-card flex-1">
-                        <div class="joystick-zone" id="modeJoystick"></div>
+                        <div class="joystick-zone" id="autoJoystick"></div>
                     </div>
                 </div>
                 <div class="card mode-section">
-                    <div class="mode-grid" style="grid-template-columns: repeat(4, 1fr);">
+                    <div class="mode-grid mode-grid-4">
                         <button class="mode-btn active" data-mode="manual"><span class="mode-icon">🎮</span><span class="mode-name">Manual</span></button>
                         <button class="mode-btn" data-mode="obstacle"><span class="mode-icon">🚧</span><span class="mode-name">Obstacle</span></button>
                         <button class="mode-btn" data-mode="patrol"><span class="mode-icon">🔄</span><span class="mode-name">Patrol</span></button>
-                        <button class="mode-btn" data-mode="follower"><span class="mode-icon">👤</span><span class="mode-name">Follower</span></button>
                         <button class="mode-btn" data-mode="lane"><span class="mode-icon">🛣️</span><span class="mode-name">Lane</span></button>
-                        <button class="mode-btn" data-mode="yolo"><span class="mode-icon">🎯</span><span class="mode-name">YOLO</span></button>
+                        <button class="mode-btn" data-mode="follower"><span class="mode-icon">👤</span><span class="mode-name">Follower</span></button>
                         <button class="mode-btn" data-mode="parking"><span class="mode-icon">🅿️</span><span class="mode-name">Parking</span></button>
                         <button class="mode-btn" data-mode="nav"><span class="mode-icon">🧭</span><span class="mode-name">Nav</span></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Page -->
+            <div class="page" id="page-ai">
+                <div class="card card-dark camera-card">
+                    <img id="aiCameraImg" src="" alt="">
+                    <div class="card-label">AI Vision</div>
+                    <div class="current-mode" style="position:absolute; bottom:8px; right:8px; width:auto;">
+                        <span>AI</span>
+                        <span id="currentAIMode">Off</span>
+                    </div>
+                </div>
+                <div class="row flex-1">
+                    <div class="card card-dark lidar-card flex-1">
+                        <canvas id="aiLidarCanvas"></canvas>
+                        <div class="card-label">LiDAR</div>
+                    </div>
+                    <div class="card joystick-card flex-1">
+                        <div class="joystick-zone" id="aiJoystick"></div>
+                    </div>
+                </div>
+                <div class="card mode-section">
+                    <div class="mode-title">AI Detection</div>
+                    <div class="mode-grid">
+                        <button class="mode-btn ai-btn" data-ai="yolo"><span class="mode-icon">🎯</span><span class="mode-name">YOLO</span></button>
+                        <button class="mode-btn ai-btn" data-ai="body"><span class="mode-icon">🏃</span><span class="mode-name">Body</span></button>
+                        <button class="mode-btn ai-btn" data-ai="gesture"><span class="mode-icon">✋</span><span class="mode-name">Gesture</span></button>
+                        <button class="mode-btn ai-btn" data-ai="person"><span class="mode-icon">👁️</span><span class="mode-name">Person</span></button>
+                        <button class="mode-btn ai-btn" data-ai="multi"><span class="mode-icon">🤖</span><span class="mode-name">Multi AI</span></button>
+                        <button class="mode-btn ai-btn active" data-ai="off"><span class="mode-icon">⭕</span><span class="mode-name">Off</span></button>
                     </div>
                 </div>
             </div>
@@ -217,15 +307,16 @@
     <script>
         document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 
-        let ros, cmdVelPub, goalPub;
+        let ros, cmdVelPub, goalPub, examplePub, modePub, aiPub;
         let isConnected = false;
         let speedMult = 0.5;
         let currentMode = 'manual';
+        let currentAI = 'off';
         let slamOn = false, navOn = false, goalMode = false;
         const MAX_LIN = 0.5, MAX_ANG = 2.0;
 
-        const lidarCanvas = document.getElementById('lidarCanvas');
-        const modeLidarCanvas = document.getElementById('modeLidarCanvas');
+        // Canvas elements
+        const lidarCanvases = ['lidarCanvas', 'autoLidarCanvas', 'aiLidarCanvas'];
         let lidarPts = [];
         let pose = { x: 0, y: 0, th: 0 };
 
@@ -233,7 +324,8 @@
         let globalPathShape = null, localPathShape = null;
 
         function resizeCanvas() {
-            [lidarCanvas, modeLidarCanvas].forEach(c => {
+            lidarCanvases.forEach(id => {
+                const c = document.getElementById(id);
                 if (c?.parentElement) {
                     const r = c.parentElement.getBoundingClientRect();
                     c.width = r.width; c.height = r.height;
@@ -254,6 +346,7 @@
         window.addEventListener('resize', resizeCanvas);
         setTimeout(resizeCanvas, 200);
 
+        // Tab navigation
         document.querySelectorAll('.tab').forEach(t => {
             t.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
@@ -264,39 +357,95 @@
             });
         });
 
+        // Speed slider
         document.getElementById('speedSlider').addEventListener('input', e => {
             speedMult = e.target.value / 100;
             document.getElementById('speedVal').textContent = e.target.value + '%';
         });
 
-        // Camera - MJPEG stream from camera_node HTTP server (port 8080)
+        // Example parameters
+        document.getElementById('exDistance').addEventListener('input', e => {
+            document.getElementById('exDistVal').textContent = parseFloat(e.target.value).toFixed(1) + 'm';
+        });
+        document.getElementById('exSpeed').addEventListener('input', e => {
+            document.getElementById('exSpeedVal').textContent = parseFloat(e.target.value).toFixed(2);
+        });
+
+        // Camera - MJPEG stream
         const enableCam = () => {
             const host = location.hostname || 'localhost';
             const url = `http://${host}:8080/stream`;
-            document.getElementById('cameraImg').src = url;
-            document.getElementById('modeCameraImg').src = url;
+            ['cameraImg', 'exCameraImg', 'autoCameraImg', 'aiCameraImg'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.src = url;
+            });
             document.getElementById('cameraImg').onload = () => {
                 document.getElementById('cameraPlaceholder').style.display = 'none';
             };
         };
 
-        document.querySelectorAll('.mode-btn').forEach(b => {
-            b.addEventListener('click', () => setMode(b.dataset.mode));
+        // Example commands
+        document.querySelectorAll('.example-btn').forEach(b => {
+            b.addEventListener('click', () => {
+                const cmd = b.dataset.cmd;
+                const dist = parseFloat(document.getElementById('exDistance').value);
+                const spd = parseFloat(document.getElementById('exSpeed').value);
+                sendExampleCommand(cmd, dist, spd);
+
+                // Visual feedback
+                document.querySelectorAll('.example-btn').forEach(x => x.classList.remove('running'));
+                if (cmd !== 'stop') b.classList.add('running');
+            });
         });
 
-        const setMode = mode => {
-            currentMode = mode;
-            document.querySelectorAll('.mode-btn').forEach(b => {
-                b.classList.toggle('active', b.dataset.mode === mode);
-            });
-            document.getElementById('currentModeValue').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
-            if (ros && isConnected) {
-                new ROSLIB.Topic({ ros, name: '/robot/mode', messageType: 'std_msgs/String' })
-                    .publish(new ROSLIB.Message({ data: mode }));
+        document.getElementById('exStopBtn').addEventListener('click', () => {
+            sendExampleCommand('stop', 0, 0);
+            document.querySelectorAll('.example-btn').forEach(x => x.classList.remove('running'));
+        });
+
+        const sendExampleCommand = (cmd, distance, speed) => {
+            if (ros && isConnected && examplePub) {
+                const msg = { data: JSON.stringify({ command: cmd, distance: distance, speed: speed }) };
+                examplePub.publish(new ROSLIB.Message(msg));
+                console.log(`Example: ${cmd}, dist=${distance}, spd=${speed}`);
             }
-            console.log(`Mode: ${mode}`);
         };
 
+        // Auto mode buttons
+        document.querySelectorAll('.mode-btn[data-mode]').forEach(b => {
+            b.addEventListener('click', () => setAutoMode(b.dataset.mode));
+        });
+
+        const setAutoMode = mode => {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn[data-mode]').forEach(b => {
+                b.classList.toggle('active', b.dataset.mode === mode);
+            });
+            document.getElementById('currentAutoMode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+            if (ros && isConnected && modePub) {
+                modePub.publish(new ROSLIB.Message({ data: mode }));
+            }
+            console.log(`Auto Mode: ${mode}`);
+        };
+
+        // AI mode buttons
+        document.querySelectorAll('.ai-btn').forEach(b => {
+            b.addEventListener('click', () => setAIMode(b.dataset.ai));
+        });
+
+        const setAIMode = ai => {
+            currentAI = ai;
+            document.querySelectorAll('.ai-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.ai === ai);
+            });
+            document.getElementById('currentAIMode').textContent = ai === 'off' ? 'Off' : ai.toUpperCase();
+            if (ros && isConnected && aiPub) {
+                aiPub.publish(new ROSLIB.Message({ data: ai }));
+            }
+            console.log(`AI Mode: ${ai}`);
+        };
+
+        // ROS Connection
         const connect = () => {
             const host = location.hostname || 'localhost';
             ros = new ROSLIB.Ros({ url: `ws://${host}:9090` });
@@ -317,10 +466,12 @@
         };
 
         const setupTopics = () => {
-            // cmd_vel - reliable, higher priority
             cmdVelPub = new ROSLIB.Topic({ ros, name: '/cmd_vel', messageType: 'geometry_msgs/Twist', queue_size: 1 });
             goalPub = new ROSLIB.Topic({ ros, name: '/goal_pose', messageType: 'geometry_msgs/PoseStamped' });
-            // LiDAR - best effort
+            examplePub = new ROSLIB.Topic({ ros, name: '/robot/example', messageType: 'std_msgs/String' });
+            modePub = new ROSLIB.Topic({ ros, name: '/robot/mode', messageType: 'std_msgs/String' });
+            aiPub = new ROSLIB.Topic({ ros, name: '/robot/ai_mode', messageType: 'std_msgs/String' });
+
             new ROSLIB.Topic({ ros, name: '/scan', messageType: 'sensor_msgs/LaserScan', queue_length: 1, throttle_rate: 150 }).subscribe(onLidar);
             new ROSLIB.Topic({ ros, name: '/odom', messageType: 'nav_msgs/Odometry', queue_length: 1 }).subscribe(onOdom);
             new ROSLIB.Topic({ ros, name: '/plan', messageType: 'nav_msgs/Path', queue_length: 1 }).subscribe(onGlobalPath);
@@ -368,7 +519,7 @@
             g.endStroke();
         };
 
-        // LiDAR - fixed mirror, distance colors, no blur
+        // LiDAR
         let lastDraw = 0;
         const onLidar = scan => {
             lidarPts = [];
@@ -386,7 +537,6 @@
             if (Date.now() - lastDraw > 100) { lastDraw = Date.now(); drawLidar(); }
         };
 
-        // Distance to color (red=near, yellow=mid, green=far)
         const distColor = d => {
             if (d < 0.5) return '#ff0000';
             if (d < 1) return '#ff4400';
@@ -397,7 +547,8 @@
         };
 
         const drawLidar = () => {
-            [lidarCanvas, modeLidarCanvas].forEach(canvas => {
+            lidarCanvases.forEach(id => {
+                const canvas = document.getElementById(id);
                 if (!canvas || !canvas.width) return;
                 const ctx = canvas.getContext('2d');
                 const cx = canvas.width / 2, cy = canvas.height / 2;
@@ -406,7 +557,6 @@
                 ctx.fillStyle = '#111';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Grid circles
                 ctx.strokeStyle = '#333';
                 ctx.lineWidth = 1;
                 [1, 2, 3].forEach(r => {
@@ -415,7 +565,6 @@
                     ctx.stroke();
                 });
 
-                // Points with distance colors
                 lidarPts.forEach(p => {
                     ctx.fillStyle = distColor(p.d);
                     ctx.beginPath();
@@ -423,13 +572,11 @@
                     ctx.fill();
                 });
 
-                // Robot
                 ctx.fillStyle = '#00aaff';
                 ctx.beginPath();
                 ctx.arc(cx, cy, 4, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Direction
                 ctx.beginPath();
                 ctx.moveTo(cx, cy - 7);
                 ctx.lineTo(cx - 3, cy);
@@ -437,7 +584,8 @@
                 ctx.closePath();
                 ctx.fill();
             });
-            document.getElementById('lidarStats').textContent = lidarPts.length;
+            const statsEl = document.getElementById('lidarStats');
+            if (statsEl) statsEl.textContent = lidarPts.length;
         };
 
         const onOdom = o => {
@@ -463,12 +611,12 @@
             }
         };
 
+        // Map controls
         document.getElementById('btnSlam').addEventListener('click', () => {
             slamOn = !slamOn;
             document.getElementById('slamBadge').classList.toggle('on', slamOn);
             document.getElementById('btnSlam').classList.toggle('active', slamOn);
             document.getElementById('mapStatus').textContent = slamOn ? 'SLAM' : 'Ready';
-            console.log(slamOn ? 'SLAM Started' : 'SLAM Stopped');
         });
 
         document.getElementById('btnNav').addEventListener('click', () => {
@@ -476,13 +624,11 @@
             document.getElementById('navBadge').classList.toggle('on', navOn);
             document.getElementById('btnNav').classList.toggle('active', navOn);
             document.getElementById('mapStatus').textContent = navOn ? 'NAV' : 'Ready';
-            console.log(navOn ? 'Nav Started' : 'Nav Stopped');
         });
 
         document.getElementById('btnGoal').addEventListener('click', () => {
             goalMode = !goalMode;
             document.getElementById('btnGoal').classList.toggle('active', goalMode);
-            console.log(goalMode ? 'Click map to set goal' : 'Goal mode off');
         });
 
         document.getElementById('btnSave').addEventListener('click', () => console.log('Map Saved'));
@@ -499,11 +645,11 @@
                 header: { frame_id: 'map' },
                 pose: { position: { x: mapX, y: mapY, z: 0 }, orientation: { x: 0, y: 0, z: 0, w: 1 } }
             }));
-            console.log(`Goal: (${mapX.toFixed(1)}, ${mapY.toFixed(1)})`);
             goalMode = false;
             document.getElementById('btnGoal').classList.remove('active');
         });
 
+        // Joysticks
         let joysticks = {};
         const setupJoystick = id => {
             const zone = document.getElementById(id);
@@ -519,14 +665,15 @@
             Object.values(joysticks).forEach(j => j?.destroy());
             joysticks = {
                 ctrl: setupJoystick('joystickZone'),
-                mode: setupJoystick('modeJoystick'),
+                auto: setupJoystick('autoJoystick'),
+                ai: setupJoystick('aiJoystick'),
                 map: setupJoystick('mapJoystick')
             };
         };
 
-        // Smooth velocity control - prevents jerky movement
+        // Smooth velocity control
         let tL = 0, tA = 0, cL = 0, cA = 0, vLoop = null;
-        const SMOOTH = 0.10;  // 0.06=very smooth, 0.10=balanced, 0.15=fast
+        const SMOOTH = 0.10;
         const sendVel = (l, a) => { tL = l; tA = a; if (!vLoop) vLoop = setInterval(pubVel, 20); };
         const pubVel = () => {
             if (!cmdVelPub || !isConnected) return;
@@ -535,11 +682,9 @@
             cmdVelPub.publish(new ROSLIB.Message({ linear: { x: cL, y: 0, z: 0 }, angular: { x: 0, y: 0, z: cA } }));
             if (!tL && !tA && Math.abs(cL) < 0.005 && Math.abs(cA) < 0.005) { clearInterval(vLoop); vLoop = null; }
         };
-        const stopBot = () => {
-            tL = tA = 0;  // Target zero, let smoothing handle deceleration
-            // Don't immediately zero cL/cA - let pubVel smooth the stop
-        };
+        const stopBot = () => { tL = tA = 0; };
 
+        // Keyboard control
         document.addEventListener('keydown', e => {
             const s = speedMult * 2;
             if (e.key === 'w') sendVel(MAX_LIN * s, 0);
@@ -550,7 +695,7 @@
         });
         document.addEventListener('keyup', e => { if ('wasd'.includes(e.key)) stopBot(); });
 
-        // Start camera immediately (don't wait for rosbridge)
+        // Start
         enableCam();
         connect();
         setTimeout(refreshJoysticks, 300);

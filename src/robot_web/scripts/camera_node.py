@@ -78,9 +78,9 @@ class CameraNode(Node):
 
         Gst.init(None)
 
-        # Parameters
+        # Parameters (IMX219: 4:3 sensor, native 640x480)
         self.declare_parameter('width', 640)
-        self.declare_parameter('height', 360)
+        self.declare_parameter('height', 480)
         self.declare_parameter('fps', 15)
         self.declare_parameter('quality', 60)
         self.declare_parameter('flip_method', 2)

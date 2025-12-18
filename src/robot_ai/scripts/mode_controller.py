@@ -19,12 +19,26 @@ Manages different operation modes:
 - follower: Follow detected person
 - lane: Lane following
 - parking: Auto parking
+
+AI Detection modes:
 - yolo: YOLO object detection
+- body: Body tracking
+- gesture: Gesture detection
+- person: Person detection
+- multi: Multi AI engine
+
+Example commands:
+- forward, backward, left, right
+- square, triangle, circle
+- stop
 """
 
 import subprocess
 import signal
 import os
+import json
+import math
+import threading
 
 import rclpy
 from rclpy.node import Node
@@ -32,6 +46,7 @@ from rclpy.qos import qos_profile_sensor_data, QoSProfile
 from std_msgs.msg import String, Bool
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
+from nav_msgs.msg import Odometry
 
 
 class ModeController(Node):
@@ -41,8 +56,17 @@ class ModeController(Node):
         super().__init__('mode_controller')
 
         self.current_mode = 'manual'
+        self.current_ai = 'off'
         self.mode_processes = []
+        self.ai_processes = []
+        self.example_thread = None
+        self.example_running = False
         self.obstacle_distance = 0.35  # Stop distance in meters
+
+        # Odometry data
+        self.odom_x = 0.0
+        self.odom_y = 0.0
+        self.odom_yaw = 0.0
 
         # Scan data
         self.scan_ranges = []
@@ -60,6 +84,14 @@ class ModeController(Node):
             String, '/robot/mode', self.mode_callback, 10
         )
 
+        self.ai_mode_sub = self.create_subscription(
+            String, '/robot/ai_mode', self.ai_mode_callback, 10
+        )
+
+        self.example_sub = self.create_subscription(
+            String, '/robot/example', self.example_callback, 10
+        )
+
         self.cmd_vel_raw_sub = self.create_subscription(
             Twist, 'cmd_vel_raw', self.cmd_vel_raw_callback,
             qos_profile=qos_profile_sensor_data
@@ -67,6 +99,11 @@ class ModeController(Node):
 
         self.scan_sub = self.create_subscription(
             LaserScan, 'scan', self.scan_callback,
+            qos_profile=qos_profile_sensor_data
+        )
+
+        self.odom_sub = self.create_subscription(
+            Odometry, 'odom', self.odom_callback,
             qos_profile=qos_profile_sensor_data
         )
 
@@ -85,6 +122,15 @@ class ModeController(Node):
         msg.data = status
         self.status_pub.publish(msg)
 
+    def odom_callback(self, msg):
+        """Process odometry data"""
+        self.odom_x = msg.pose.pose.position.x
+        self.odom_y = msg.pose.pose.position.y
+        q = msg.pose.pose.orientation
+        siny = 2.0 * (q.w * q.z + q.x * q.y)
+        cosy = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
+        self.odom_yaw = math.atan2(siny, cosy)
+
     def mode_callback(self, msg):
         """Handle mode change requests"""
         new_mode = msg.data.lower()
@@ -96,6 +142,9 @@ class ModeController(Node):
 
         # Stop any running mode processes
         self.stop_mode_processes()
+
+        # Stop example if running
+        self.stop_example()
 
         # Stop robot
         self.stop_robot()
@@ -146,11 +195,188 @@ class ModeController(Node):
             # Send start command
             self.create_timer(1.0, self.start_parking, one_shot=True)
 
-        elif new_mode == 'yolo':
-            # Start YOLO detector
-            self.start_mode_process([
+        elif new_mode == 'nav':
+            self.get_logger().info('Navigation mode - use Map tab for goal setting')
+
+    def ai_mode_callback(self, msg):
+        """Handle AI mode change requests"""
+        new_ai = msg.data.lower()
+
+        if new_ai == self.current_ai:
+            return
+
+        self.get_logger().info(f'AI mode change: {self.current_ai} -> {new_ai}')
+
+        # Stop any running AI processes
+        self.stop_ai_processes()
+
+        self.current_ai = new_ai
+        self.publish_status(f'AI: {new_ai}')
+
+        if new_ai == 'off':
+            pass  # No AI running
+
+        elif new_ai == 'yolo':
+            self.start_ai_process([
                 'ros2', 'run', 'robot_ai', 'yolo_detector.py'
             ])
+
+        elif new_ai == 'body':
+            self.start_ai_process([
+                'ros2', 'run', 'robot_ai', 'body_tracker.py'
+            ])
+
+        elif new_ai == 'gesture':
+            self.start_ai_process([
+                'ros2', 'run', 'robot_ai', 'gesture_detector.py'
+            ])
+
+        elif new_ai == 'person':
+            self.start_ai_process([
+                'ros2', 'run', 'robot_ai', 'person_detector.py'
+            ])
+
+        elif new_ai == 'multi':
+            self.start_ai_process([
+                'ros2', 'run', 'robot_ai', 'multi_ai_engine.py'
+            ])
+
+    def example_callback(self, msg):
+        """Handle example commands from web UI"""
+        try:
+            data = json.loads(msg.data)
+            command = data.get('command', 'stop')
+            distance = data.get('distance', 1.0)
+            speed = data.get('speed', 0.2)
+
+            self.get_logger().info(f'Example command: {command}, dist={distance}, spd={speed}')
+
+            if command == 'stop':
+                self.stop_example()
+                self.stop_robot()
+                return
+
+            # Stop previous example
+            self.stop_example()
+
+            # Start new example in thread
+            self.example_running = True
+            self.example_thread = threading.Thread(
+                target=self.run_example,
+                args=(command, distance, speed)
+            )
+            self.example_thread.start()
+
+        except json.JSONDecodeError as e:
+            self.get_logger().error(f'Invalid example command JSON: {e}')
+
+    def run_example(self, command, distance, speed):
+        """Run example movement in a thread"""
+        try:
+            if command == 'forward':
+                self.move_distance(distance, speed)
+            elif command == 'backward':
+                self.move_distance(distance, -speed)
+            elif command == 'left':
+                self.turn_angle(90.0, speed * 2)
+            elif command == 'right':
+                self.turn_angle(-90.0, speed * 2)
+            elif command == 'square':
+                self.move_pattern('square', distance, speed)
+            elif command == 'triangle':
+                self.move_pattern('triangle', distance, speed)
+            elif command == 'circle':
+                self.move_pattern('circle', distance, speed)
+
+        except Exception as e:
+            self.get_logger().error(f'Example error: {e}')
+        finally:
+            self.example_running = False
+            self.stop_robot()
+
+    def move_distance(self, distance, speed):
+        """Move forward/backward by distance"""
+        start_x, start_y = self.odom_x, self.odom_y
+
+        twist = Twist()
+        twist.linear.x = speed
+
+        while self.example_running:
+            dx = self.odom_x - start_x
+            dy = self.odom_y - start_y
+            traveled = math.sqrt(dx*dx + dy*dy)
+
+            if traveled >= distance:
+                break
+
+            self.cmd_vel_pub.publish(twist)
+            rclpy.spin_once(self, timeout_sec=0.05)
+
+        self.stop_robot()
+
+    def turn_angle(self, angle_deg, angular_speed):
+        """Turn by angle in degrees"""
+        start_yaw = self.odom_yaw
+        target_angle = math.radians(angle_deg)
+
+        twist = Twist()
+        twist.angular.z = angular_speed if angle_deg > 0 else -angular_speed
+
+        while self.example_running:
+            yaw_diff = self.normalize_angle(self.odom_yaw - start_yaw)
+
+            if abs(yaw_diff) >= abs(target_angle) * 0.95:
+                break
+
+            self.cmd_vel_pub.publish(twist)
+            rclpy.spin_once(self, timeout_sec=0.05)
+
+        self.stop_robot()
+
+    def move_pattern(self, pattern, size, speed):
+        """Move in a pattern"""
+        if pattern == 'square':
+            for i in range(4):
+                if not self.example_running:
+                    break
+                self.move_distance(size, speed)
+                self.turn_angle(90.0, speed * 2)
+
+        elif pattern == 'triangle':
+            for i in range(3):
+                if not self.example_running:
+                    break
+                self.move_distance(size, speed)
+                self.turn_angle(120.0, speed * 2)
+
+        elif pattern == 'circle':
+            # Circle: constant linear + angular velocity
+            twist = Twist()
+            twist.linear.x = speed
+            twist.angular.z = speed / (size / 2)  # v = r * omega
+
+            import time
+            start_time = time.time()
+            circle_duration = 2 * math.pi * (size / 2) / speed  # circumference / speed
+
+            while self.example_running and (time.time() - start_time) < circle_duration:
+                self.cmd_vel_pub.publish(twist)
+                rclpy.spin_once(self, timeout_sec=0.05)
+
+    def normalize_angle(self, angle):
+        """Normalize angle to [-pi, pi]"""
+        while angle > math.pi:
+            angle -= 2 * math.pi
+        while angle < -math.pi:
+            angle += 2 * math.pi
+        return angle
+
+    def stop_example(self):
+        """Stop running example"""
+        self.example_running = False
+        if self.example_thread and self.example_thread.is_alive():
+            self.example_thread.join(timeout=1.0)
+        self.example_thread = None
 
     def start_patrol(self):
         """Send start command to patrol node"""
@@ -187,6 +413,20 @@ class ModeController(Node):
         except Exception as e:
             self.get_logger().error(f'Failed to start mode process: {e}')
 
+    def start_ai_process(self, cmd):
+        """Start an AI subprocess"""
+        try:
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                preexec_fn=os.setsid
+            )
+            self.ai_processes.append(process)
+            self.get_logger().info(f'Started AI process: {" ".join(cmd)}')
+        except Exception as e:
+            self.get_logger().error(f'Failed to start AI process: {e}')
+
     def stop_mode_processes(self):
         """Stop all mode subprocesses"""
         for process in self.mode_processes:
@@ -205,6 +445,19 @@ class ModeController(Node):
         msg.data = False
         self.lane_enable_pub.publish(msg)
 
+    def stop_ai_processes(self):
+        """Stop all AI subprocesses"""
+        for process in self.ai_processes:
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                process.wait(timeout=3)
+            except Exception:
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                except Exception:
+                    pass
+        self.ai_processes = []
+
     def cmd_vel_raw_callback(self, msg):
         """Store raw velocity commands"""
         self.raw_twist = msg
@@ -218,7 +471,7 @@ class ModeController(Node):
         """Periodic processing based on mode"""
         if self.current_mode == 'obstacle' and self.has_scan:
             self.obstacle_avoidance()
-        elif self.current_mode == 'manual':
+        elif self.current_mode == 'manual' and not self.example_running:
             # Pass through raw commands
             self.cmd_vel_pub.publish(self.raw_twist)
 
@@ -264,7 +517,9 @@ class ModeController(Node):
 
     def destroy_node(self):
         """Cleanup"""
+        self.stop_example()
         self.stop_mode_processes()
+        self.stop_ai_processes()
         self.stop_robot()
         super().destroy_node()
 
