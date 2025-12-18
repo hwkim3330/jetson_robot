@@ -26,8 +26,9 @@ Thumbs.db
 *.bak
 *.log
 
-# Model files (too large)
+# Model files (large)
 *.pt
 *.onnx
-*.engine
 *.trt
+# Keep TensorRT engines (small enough)
+!*_fp16.engine

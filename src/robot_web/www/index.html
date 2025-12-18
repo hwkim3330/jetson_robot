@@ -15,7 +15,6 @@
         html, body { overflow: hidden; position: fixed; width: 100%; height: 100%; font-family: -apple-system, sans-serif; background: #f2f2f7; }
         .app { height: 100%; display: flex; flex-direction: column; }
 
-        /* Header */
         .header { display: flex; align-items: center; padding: 8px 12px; background: #fff; border-bottom: 1px solid #d1d1d6; flex-shrink: 0; }
         .logo { display: flex; align-items: center; gap: 6px; }
         .logo img { height: 20px; }
@@ -27,38 +26,32 @@
         .dot { width: 8px; height: 8px; border-radius: 50%; background: #ff3b30; }
         .dot.on { background: #34c759; }
 
-        /* Content */
         .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         .page { display: none; flex-direction: column; height: 100%; }
         .page.active { display: flex; }
 
-        /* Camera 16:9 */
         .camera-wrap { width: 100%; background: #000; position: relative; flex-shrink: 0; }
         .camera-wrap::before { content: ''; display: block; padding-top: 56.25%; }
-        .camera-wrap img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+        .camera-wrap img, .camera-wrap canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .camera-wrap img { object-fit: contain; }
+        .camera-wrap canvas { pointer-events: none; }
 
-        /* Map */
         .map-wrap { flex: 1; background: #1c1c1e; position: relative; min-height: 150px; overflow: hidden; }
-        #mapDiv { width: 100%; height: 100%; }
+        #mapDiv { width: 100%; height: 100%; background: #2c2c2e; }
         .map-btns { position: absolute; top: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; z-index: 10; }
         .mbtn { padding: 8px 14px; background: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; color: #1c1c1e; box-shadow: 0 2px 8px rgba(0,0,0,0.2); cursor: pointer; }
         .mbtn:active { transform: scale(0.95); }
         .mbtn.on { background: #007aff; color: #fff; }
         .mbtn.red { background: #ff3b30; color: #fff; }
         .mstat { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 6px 10px; border-radius: 6px; font-size: 11px; color: #fff; font-weight: 500; }
+        .no-map { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #666; font-size: 14px; }
 
-        /* Control Row - LiDAR and Joystick only */
         .ctrl-row { display: flex; flex: 1; background: #fff; border-top: 1px solid #d1d1d6; min-height: 180px; }
-
-        /* LiDAR */
         .lidar-box { flex: 1; background: #000; position: relative; }
         .lidar-box canvas { display: block; width: 100%; height: 100%; }
-
-        /* Joystick */
         .joy-box { flex: 1; background: #f2f2f7; position: relative; }
         .joy-zone { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 160px; background: radial-gradient(circle, #fff 0%, #e5e5ea 100%); border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
 
-        /* Bottom bar - odom + speed */
         .bottom-bar { display: flex; align-items: center; padding: 6px 12px; background: #fff; border-top: 1px solid #e5e5ea; flex-shrink: 0; gap: 12px; }
         .odom-group { display: flex; gap: 8px; }
         .odom-item { display: flex; align-items: center; gap: 2px; }
@@ -70,7 +63,6 @@
         .speed-group input::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: #007aff; border-radius: 50%; }
         .speed-group span { font-size: 12px; font-weight: 700; color: #007aff; min-width: 36px; text-align: right; }
 
-        /* AI overlay */
         .ai-btn { position: absolute; top: 8px; right: 8px; padding: 8px 16px; background: rgba(255,255,255,0.9); border: none; border-radius: 8px; font-size: 12px; font-weight: 600; z-index: 5; cursor: pointer; }
         .ai-btn:active { transform: scale(0.95); }
         .ai-btn.on { background: #34c759; color: #fff; }
@@ -90,7 +82,6 @@
     </header>
 
     <div class="content">
-        <!-- Control -->
         <div class="page active" id="page-control">
             <div class="camera-wrap"><img id="cam1" src="" alt=""></div>
             <div class="ctrl-row">
@@ -111,10 +102,9 @@
             </div>
         </div>
 
-        <!-- Map -->
         <div class="page" id="page-map">
             <div class="map-wrap">
-                <div id="mapDiv"></div>
+                <div id="mapDiv"><span class="no-map">Start SLAM to see map</span></div>
                 <div class="map-btns">
                     <button class="mbtn" id="bSlam">SLAM</button>
                     <button class="mbtn" id="bSave">Save</button>
@@ -142,10 +132,10 @@
             </div>
         </div>
 
-        <!-- AI -->
         <div class="page" id="page-ai">
             <div class="camera-wrap">
                 <img id="cam2" src="" alt="">
+                <canvas id="boxCanvas"></canvas>
                 <button class="ai-btn" id="yoloB">YOLO</button>
             </div>
             <div class="ctrl-row">
@@ -172,16 +162,22 @@
 <script>
 document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 
-let ros, cmdVel, aiPub, conn = false, spd = 0.5, pts = [], yolo = false;
-const ML = 0.5, MA = 2.0;
+let ros, cmdVel, aiPub, modePub, conn = false, spd = 0.5, pts = [], yolo = false, boxes = [];
+const ML = 0.5, MA = 2.0, CAM_W = 640, CAM_H = 360;
 const lids = ['lid1','lid2','lid3'].map(id => document.getElementById(id));
+const boxCanvas = document.getElementById('boxCanvas');
+let mapViewer = null, gridClient = null;
 
 function initLids() {
     lids.forEach(c => { if(c?.parentElement) { c.width = c.parentElement.clientWidth; c.height = c.parentElement.clientHeight; } });
     drawLids();
 }
-window.onresize = initLids;
-setTimeout(initLids, 100);
+function initBoxCanvas() {
+    const wrap = boxCanvas?.parentElement;
+    if(wrap) { boxCanvas.width = wrap.clientWidth; boxCanvas.height = wrap.clientHeight; }
+}
+window.onresize = () => { initLids(); initBoxCanvas(); };
+setTimeout(() => { initLids(); initBoxCanvas(); }, 100);
 
 function setCam() {
     const s = `http://${location.hostname||'localhost'}:8080/stream`;
@@ -196,11 +192,11 @@ document.querySelectorAll('.tab').forEach(t => {
         document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
         t.classList.add('active');
         document.getElementById('page-'+t.dataset.page).classList.add('active');
-        setTimeout(() => { initLids(); initJoys(); initMap(); }, 50);
+        setTimeout(() => { initLids(); initJoys(); initBoxCanvas(); if(t.dataset.page==='map') initMap(); }, 50);
     };
 });
 
-// Speed - sync all sliders
+// Speed
 ['spd','spd2','spd3'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.oninput = e => {
@@ -217,37 +213,108 @@ document.getElementById('yoloB').onclick = function() {
     this.textContent = yolo ? 'YOLO ON' : 'YOLO';
     if(aiPub) aiPub.publish(new ROSLIB.Message({data: yolo?'yolo':'off'}));
     document.getElementById('logB').textContent = yolo ? 'Starting...' : 'Stopped';
+    if(!yolo) { boxes = []; drawBoxes(); }
 };
 
-// Map
+// Map buttons
 let slam=false, nav=false;
-document.getElementById('bSlam').onclick = function() { slam=!slam; nav=false; this.classList.toggle('on',slam); document.getElementById('bNav').classList.remove('on'); document.getElementById('mstat').textContent=slam?'SLAM':'Ready'; };
-document.getElementById('bNav').onclick = function() { nav=!nav; slam=false; this.classList.toggle('on',nav); document.getElementById('bSlam').classList.remove('on'); document.getElementById('mstat').textContent=nav?'Nav':'Ready'; };
-document.getElementById('bStop').onclick = () => { slam=nav=false; document.getElementById('bSlam').classList.remove('on'); document.getElementById('bNav').classList.remove('on'); document.getElementById('mstat').textContent='Ready'; stop(); };
-document.getElementById('bSave').onclick = () => alert('Save');
-document.getElementById('bLoad').onclick = () => alert('Load');
+document.getElementById('bSlam').onclick = function() {
+    slam = !slam; nav = false;
+    this.classList.toggle('on', slam);
+    document.getElementById('bNav').classList.remove('on');
+    document.getElementById('mstat').textContent = slam ? 'SLAM Active' : 'Ready';
+    if(modePub) modePub.publish(new ROSLIB.Message({data: slam ? 'slam' : 'manual'}));
+    if(slam) setTimeout(initMap, 500);
+};
+document.getElementById('bNav').onclick = function() {
+    nav = !nav; slam = false;
+    this.classList.toggle('on', nav);
+    document.getElementById('bSlam').classList.remove('on');
+    document.getElementById('mstat').textContent = nav ? 'Nav Active' : 'Ready';
+    if(modePub) modePub.publish(new ROSLIB.Message({data: nav ? 'nav' : 'manual'}));
+};
+document.getElementById('bStop').onclick = () => {
+    slam = nav = false;
+    document.getElementById('bSlam').classList.remove('on');
+    document.getElementById('bNav').classList.remove('on');
+    document.getElementById('mstat').textContent = 'Ready';
+    if(modePub) modePub.publish(new ROSLIB.Message({data: 'manual'}));
+    stop();
+};
+document.getElementById('bSave').onclick = () => {
+    if(confirm('Save current map?')) {
+        // TODO: call map_saver service
+        alert('Map save requested');
+    }
+};
+document.getElementById('bLoad').onclick = () => {
+    if(confirm('Load saved map?')) {
+        // TODO: call map_server
+        alert('Map load requested');
+    }
+};
 
 // ROS
 function connect() {
     ros = new ROSLIB.Ros({url:`ws://${location.hostname||'localhost'}:9090`});
-    ros.on('connection', () => { conn=true; document.getElementById('dot').classList.add('on'); document.getElementById('stxt').textContent='Online'; setup(); setCam(); initMap(); });
-    ros.on('close', () => { conn=false; document.getElementById('dot').classList.remove('on'); document.getElementById('stxt').textContent='Offline'; setTimeout(connect,2000); });
+    ros.on('connection', () => {
+        conn = true;
+        document.getElementById('dot').classList.add('on');
+        document.getElementById('stxt').textContent = 'Online';
+        setup();
+        setCam();
+    });
+    ros.on('close', () => {
+        conn = false;
+        document.getElementById('dot').classList.remove('on');
+        document.getElementById('stxt').textContent = 'Offline';
+        setTimeout(connect, 2000);
+    });
+    ros.on('error', () => {});
 }
+
 function setup() {
     cmdVel = new ROSLIB.Topic({ros, name:'/cmd_vel', messageType:'geometry_msgs/Twist'});
     aiPub = new ROSLIB.Topic({ros, name:'/robot/ai_mode', messageType:'std_msgs/String'});
+    modePub = new ROSLIB.Topic({ros, name:'/robot/mode', messageType:'std_msgs/String'});
     new ROSLIB.Topic({ros, name:'/scan', messageType:'sensor_msgs/LaserScan', throttle_rate:150}).subscribe(onScan);
     new ROSLIB.Topic({ros, name:'/odom', messageType:'nav_msgs/Odometry'}).subscribe(onOdom);
     new ROSLIB.Topic({ros, name:'/detections', messageType:'std_msgs/String'}).subscribe(onDet);
 }
+
 function initMap() {
-    if(!ros||!conn) return;
+    if(!ros || !conn) return;
     const d = document.getElementById('mapDiv');
-    if(!d||!d.offsetWidth) return;
+    if(!d || !d.offsetWidth || d.offsetWidth < 50) return;
+
+    // Clear previous
     d.innerHTML = '';
-    const v = new ROS2D.Viewer({divID:'mapDiv', width:d.offsetWidth, height:d.offsetHeight});
-    const g = new ROS2D.OccupancyGridClient({ros, rootObject:v.scene, continuous:true});
-    g.on('change', () => v.scaleToDimensions(g.currentGrid.width, g.currentGrid.height));
+
+    try {
+        mapViewer = new ROS2D.Viewer({
+            divID: 'mapDiv',
+            width: d.offsetWidth,
+            height: d.offsetHeight
+        });
+
+        gridClient = new ROS2D.OccupancyGridClient({
+            ros: ros,
+            rootObject: mapViewer.scene,
+            continuous: true
+        });
+
+        gridClient.on('change', function() {
+            if(gridClient.currentGrid) {
+                mapViewer.scaleToDimensions(
+                    gridClient.currentGrid.width * 0.05,
+                    gridClient.currentGrid.height * 0.05
+                );
+            }
+        });
+    } catch(e) {
+        console.log('Map init error:', e);
+        d.innerHTML = '<span class="no-map">Map viewer error</span>';
+    }
 }
 
 // LiDAR
@@ -256,43 +323,90 @@ function onScan(m) {
     pts = [];
     for(let i=0; i<m.ranges.length; i+=4) {
         const r = m.ranges[i];
-        if(r>m.range_min && r<Math.min(m.range_max,5)) {
-            const a = m.angle_min + i*m.angle_increment;
-            pts.push({x:r*Math.cos(a-Math.PI/2), y:r*Math.sin(a-Math.PI/2), d:r});
+        if(r > m.range_min && r < Math.min(m.range_max, 5)) {
+            const a = m.angle_min + i * m.angle_increment;
+            pts.push({x: r*Math.cos(a-Math.PI/2), y: r*Math.sin(a-Math.PI/2), d: r});
         }
     }
-    if(Date.now()-ld>100) { ld=Date.now(); drawLids(); }
+    if(Date.now() - ld > 100) { ld = Date.now(); drawLids(); }
 }
-function dc(d) { return d<0.5?'#ff3b30':d<1?'#ff9500':d<2?'#ffcc00':'#34c759'; }
+
+function dc(d) { return d<0.5 ? '#ff3b30' : d<1 ? '#ff9500' : d<2 ? '#ffcc00' : '#34c759'; }
+
 function drawLids() {
     lids.forEach(c => {
-        if(!c||!c.width) return;
-        const ctx=c.getContext('2d'), cx=c.width/2, cy=c.height/2, sc=Math.min(c.width,c.height)/8;
-        ctx.fillStyle='#000'; ctx.fillRect(0,0,c.width,c.height);
-        ctx.strokeStyle='#333';
-        [1,2,3].forEach(r => { ctx.beginPath(); ctx.arc(cx,cy,r*sc,0,Math.PI*2); ctx.stroke(); });
-        pts.forEach(p => { ctx.fillStyle=dc(p.d); ctx.beginPath(); ctx.arc(cx+p.x*sc,cy+p.y*sc,2,0,Math.PI*2); ctx.fill(); });
-        ctx.fillStyle='#007aff'; ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2); ctx.fill();
+        if(!c || !c.width) return;
+        const ctx = c.getContext('2d'), cx = c.width/2, cy = c.height/2, sc = Math.min(c.width, c.height)/8;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.strokeStyle = '#333';
+        [1,2,3].forEach(r => { ctx.beginPath(); ctx.arc(cx, cy, r*sc, 0, Math.PI*2); ctx.stroke(); });
+        pts.forEach(p => { ctx.fillStyle = dc(p.d); ctx.beginPath(); ctx.arc(cx + p.x*sc, cy + p.y*sc, 2, 0, Math.PI*2); ctx.fill(); });
+        ctx.fillStyle = '#007aff';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4, 0, Math.PI*2);
+        ctx.fill();
     });
 }
 
 // Odom
 function onOdom(m) {
-    const x=m.pose.pose.position.x.toFixed(2), y=m.pose.pose.position.y.toFixed(2);
-    const q=m.pose.pose.orientation, t=Math.round(Math.atan2(2*(q.w*q.z),1-2*q.z*q.z)*180/Math.PI);
+    const x = m.pose.pose.position.x.toFixed(2);
+    const y = m.pose.pose.position.y.toFixed(2);
+    const q = m.pose.pose.orientation;
+    const t = Math.round(Math.atan2(2*(q.w*q.z), 1-2*q.z*q.z) * 180/Math.PI);
     ['1','2','3'].forEach(i => {
-        const ex=document.getElementById('x'+i), ey=document.getElementById('y'+i), et=document.getElementById('t'+i);
-        if(ex) ex.textContent=x; if(ey) ey.textContent=y; if(et) et.textContent=t+'°';
+        const ex = document.getElementById('x'+i), ey = document.getElementById('y'+i), et = document.getElementById('t'+i);
+        if(ex) ex.textContent = x;
+        if(ey) ey.textContent = y;
+        if(et) et.textContent = t + '°';
     });
 }
 
-// Det
+// Detections with bounding boxes
 function onDet(m) {
     if(!yolo) return;
     try {
         const d = JSON.parse(m.data);
-        document.getElementById('logB').innerHTML = d.slice(0,4).map(x=>`<span style="color:#ff9500">${x.class}</span> ${(x.confidence*100).toFixed(0)}%`).join('<br>');
-    } catch(e){}
+        boxes = d;
+        drawBoxes();
+        document.getElementById('logB').innerHTML = d.slice(0,4).map(x =>
+            `<span style="color:#ff9500">${x.class}</span> ${(x.confidence*100).toFixed(0)}%`
+        ).join(' | ');
+    } catch(e) {}
+}
+
+function drawBoxes() {
+    if(!boxCanvas) return;
+    const ctx = boxCanvas.getContext('2d');
+    const cw = boxCanvas.width, ch = boxCanvas.height;
+    ctx.clearRect(0, 0, cw, ch);
+
+    if(!yolo || !boxes.length) return;
+
+    const scaleX = cw / CAM_W, scaleY = ch / CAM_H;
+
+    boxes.forEach(b => {
+        if(!b.bbox || b.bbox.length < 4) return;
+        const [x1, y1, x2, y2] = b.bbox;
+        const sx = x1 * scaleX, sy = y1 * scaleY;
+        const sw = (x2 - x1) * scaleX, sh = (y2 - y1) * scaleY;
+
+        // Box color by class
+        const color = b.class === 'person' ? '#00ff00' : '#ff9500';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sx, sy, sw, sh);
+
+        // Label
+        const label = `${b.class} ${(b.confidence*100).toFixed(0)}%`;
+        ctx.font = '12px sans-serif';
+        const tw = ctx.measureText(label).width;
+        ctx.fillStyle = color;
+        ctx.fillRect(sx, sy - 16, tw + 6, 16);
+        ctx.fillStyle = '#000';
+        ctx.fillText(label, sx + 3, sy - 4);
+    });
 }
 
 // Joysticks
@@ -303,43 +417,64 @@ function mkJoy(id) {
     return nipplejs.create({
         zone: z,
         mode: 'static',
-        position: {left:'50%', top:'50%'},
+        position: {left: '50%', top: '50%'},
         color: '#8e8e93',
         size: 120
-    }).on('move', (e,d) => {
-        const f=Math.min(d.force,2)/2, a=d.angle.radian;
-        send(Math.sin(a)*f*ML*spd*2, -Math.cos(a)*f*MA*spd*2);
+    }).on('move', (e, d) => {
+        const f = Math.min(d.force, 2) / 2, a = d.angle.radian;
+        send(Math.sin(a) * f * ML * spd * 2, -Math.cos(a) * f * MA * spd * 2);
     }).on('end', stop);
 }
+
 function initJoys() {
     Object.values(joys).forEach(j => j?.destroy());
-    joys = { j1:mkJoy('jz1'), j2:mkJoy('jz2'), j3:mkJoy('jz3') };
+    joys = { j1: mkJoy('jz1'), j2: mkJoy('jz2'), j3: mkJoy('jz3') };
 }
 
-// Vel
-let tL=0,tA=0,cL=0,cA=0,lp=null;
-function send(l,a) { tL=l; tA=a; if(!lp) lp=setInterval(pub,20); }
+// Velocity
+let tL=0, tA=0, cL=0, cA=0, lp=null, keys={};
+function send(l, a) { tL = l; tA = a; if(!lp) lp = setInterval(pub, 20); }
 function pub() {
-    if(!cmdVel||!conn) return;
-    cL+=(tL-cL)*0.15; cA+=(tA-cA)*0.15;
-    if(Math.abs(cL)<0.005) cL=0; if(Math.abs(cA)<0.005) cA=0;
-    cmdVel.publish(new ROSLIB.Message({linear:{x:cL,y:0,z:0},angular:{x:0,y:0,z:cA}}));
-    if(!tL&&!tA&&!cL&&!cA) { clearInterval(lp); lp=null; }
+    if(!cmdVel || !conn) return;
+    cL += (tL - cL) * 0.15;
+    cA += (tA - cA) * 0.15;
+    if(Math.abs(cL) < 0.005) cL = 0;
+    if(Math.abs(cA) < 0.005) cA = 0;
+    cmdVel.publish(new ROSLIB.Message({linear:{x:cL,y:0,z:0}, angular:{x:0,y:0,z:cA}}));
+    if(!tL && !tA && !cL && !cA) { clearInterval(lp); lp = null; }
 }
-function stop() { tL=tA=0; }
+function stop() { tL = tA = 0; }
 
-// Key
+// Keyboard - WASD (uppercase + lowercase)
+function updateFromKeys() {
+    const s = spd * 2;
+    let l = 0, a = 0;
+    if(keys['w'] || keys['W']) l = ML * s;
+    if(keys['s'] || keys['S']) l = -ML * s;
+    if(keys['a'] || keys['A']) a = MA * s;
+    if(keys['d'] || keys['D']) a = -MA * s;
+    if(l || a) send(l, a);
+    else stop();
+}
+
 document.onkeydown = e => {
-    const s=spd*2;
-    if(e.key==='w') send(ML*s,0);
-    else if(e.key==='s') send(-ML*s,0);
-    else if(e.key==='a') send(0,MA*s);
-    else if(e.key==='d') send(0,-MA*s);
-    else if(e.key===' ') stop();
+    if(e.key === ' ') { stop(); return; }
+    if('wasdWASD'.includes(e.key)) {
+        keys[e.key] = true;
+        updateFromKeys();
+    }
 };
-document.onkeyup = e => { if('wasd'.includes(e.key)) stop(); };
 
-setCam(); connect(); setTimeout(initJoys, 200);
+document.onkeyup = e => {
+    if('wasdWASD'.includes(e.key)) {
+        keys[e.key] = false;
+        updateFromKeys();
+    }
+};
+
+setCam();
+connect();
+setTimeout(initJoys, 200);
 </script>
 </body>
 </html>
