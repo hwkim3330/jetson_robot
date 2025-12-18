@@ -3,85 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KETI Robot</title>
+    <title>SDV AI Robot</title>
     <link rel="icon" href="keti.png">
     <script src="js/eventemitter2.min.js"></script>
-    <script src="js/easeljs.min.js"></script>
     <script src="js/roslib.min.js"></script>
-    <script src="js/ros2d.min.js"></script>
     <script src="js/nipplejs.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
-        html, body { overflow: hidden; position: fixed; width: 100%; height: 100%; font-family: -apple-system, sans-serif; background: #1a1a1a; color: #fff; }
+        html, body { overflow: hidden; position: fixed; width: 100%; height: 100%; font-family: -apple-system, 'SF Pro Display', sans-serif; background: #f5f5f7; color: #1d1d1f; }
         .app { height: 100%; display: flex; flex-direction: column; }
 
         /* Header */
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #222; }
-        .logo { display: flex; align-items: center; gap: 8px; }
-        .logo img { height: 18px; }
-        .logo h1 { font-size: 14px; font-weight: 600; }
-        .status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #888; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e5e5e5; }
+        .logo { display: flex; align-items: center; gap: 10px; }
+        .logo img { height: 22px; }
+        .logo h1 { font-size: 15px; font-weight: 600; color: #1d1d1f; }
+        .status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #86868b; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff3b30; }
-        .status-dot.on { background: #34c759; }
+        .status-dot.on { background: #30d158; }
 
-        /* Sensor View (Fixed) */
-        .sensor-view { display: flex; gap: 4px; padding: 4px; background: #111; }
-        .camera-box { flex: 3; aspect-ratio: 4/3; background: #000; border-radius: 8px; overflow: hidden; position: relative; }
+        /* Main Content */
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* Sensor View */
+        .sensor-view { display: flex; gap: 8px; padding: 8px; background: #fff; margin: 8px; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .camera-box { flex: 3; aspect-ratio: 16/9; background: #1d1d1f; border-radius: 12px; overflow: hidden; position: relative; }
         .camera-box img { width: 100%; height: 100%; object-fit: cover; }
-        .lidar-box { flex: 2; aspect-ratio: 1/1; background: #000; border-radius: 8px; position: relative; }
+        .lidar-box { flex: 2; aspect-ratio: 1; background: #1d1d1f; border-radius: 12px; position: relative; overflow: hidden; }
         .lidar-box canvas { width: 100%; height: 100%; }
-        .box-label { position: absolute; top: 4px; left: 6px; font-size: 9px; color: rgba(255,255,255,0.5); }
 
         /* Tabs */
-        .tabs { display: flex; background: #222; padding: 4px; gap: 2px; }
-        .tab { flex: 1; padding: 8px 4px; background: transparent; border: none; color: #888; font-size: 11px; font-weight: 500; cursor: pointer; border-radius: 6px; }
-        .tab.active { background: #333; color: #fff; }
+        .tabs { display: flex; padding: 0 8px; gap: 4px; }
+        .tab { flex: 1; padding: 10px 8px; background: #fff; border: none; color: #86868b; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: all 0.2s; }
+        .tab.active { background: #007aff; color: #fff; }
 
-        /* Content */
-        .content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-        .page { display: none; flex: 1; padding: 8px; overflow-y: auto; }
-        .page.active { display: flex; flex-direction: column; gap: 8px; }
+        /* Page Content */
+        .content { flex: 1; overflow-y: auto; padding: 8px; }
+        .page { display: none; flex-direction: column; gap: 8px; }
+        .page.active { display: flex; }
 
         /* Cards */
-        .card { background: #222; border-radius: 10px; padding: 12px; }
-        .card-title { font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 8px; }
+        .card { background: #fff; border-radius: 16px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .card-title { font-size: 11px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
 
-        /* Joystick */
-        .joystick-area { display: flex; align-items: center; justify-content: center; gap: 16px; }
-        .joystick-zone { width: 120px; height: 120px; background: #333; border-radius: 50%; }
-        .odom-info { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #888; }
-        .odom-info b { color: #fff; }
+        /* Control Panel - Tesla Style */
+        .control-panel { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+        .odom-display { text-align: center; min-width: 80px; }
+        .odom-value { font-size: 24px; font-weight: 700; color: #1d1d1f; }
+        .odom-label { font-size: 10px; color: #86868b; text-transform: uppercase; }
+        .joystick-container { flex-shrink: 0; }
+        .joystick-zone { width: 140px; height: 140px; background: linear-gradient(145deg, #e8e8e8, #fff); border-radius: 50%; box-shadow: inset 0 2px 6px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.1); }
 
-        /* Speed */
-        .speed-row { display: flex; align-items: center; gap: 10px; }
-        .speed-slider { flex: 1; height: 6px; -webkit-appearance: none; background: #444; border-radius: 3px; }
-        .speed-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; background: #007aff; border-radius: 50%; }
-        .speed-val { font-size: 12px; font-weight: 600; color: #007aff; min-width: 40px; text-align: right; }
+        /* Speed Control */
+        .speed-control { display: flex; align-items: center; gap: 12px; }
+        .speed-label { font-size: 13px; font-weight: 600; color: #1d1d1f; min-width: 50px; }
+        .speed-slider { flex: 1; height: 8px; -webkit-appearance: none; background: #e5e5e5; border-radius: 4px; }
+        .speed-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; background: #007aff; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,122,255,0.4); }
+        .speed-value { font-size: 15px; font-weight: 700; color: #007aff; min-width: 45px; text-align: right; }
 
         /* Mode Grid */
-        .mode-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-        .mode-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 4px; background: #333; border: 2px solid transparent; border-radius: 10px; cursor: pointer; }
-        .mode-btn.active { border-color: #007aff; background: rgba(0,122,255,0.15); }
-        .mode-btn:active { transform: scale(0.95); }
-        .mode-icon { font-size: 24px; }
-        .mode-name { font-size: 10px; color: #ccc; }
+        .mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .mode-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 16px 8px; background: #f5f5f7; border: 2px solid transparent; border-radius: 14px; cursor: pointer; transition: all 0.2s; }
+        .mode-btn:active { transform: scale(0.96); }
+        .mode-btn.active { background: #e8f4ff; border-color: #007aff; }
+        .mode-icon { font-size: 28px; }
+        .mode-name { font-size: 11px; font-weight: 600; color: #1d1d1f; }
         .mode-btn.active .mode-name { color: #007aff; }
 
-        /* Status Bar */
-        .status-bar { display: flex; justify-content: space-between; padding: 8px 12px; background: #007aff; border-radius: 8px; }
-        .status-bar span { font-size: 11px; }
-
-        /* Map */
-        .map-container { flex: 1; background: #000; border-radius: 8px; min-height: 200px; position: relative; }
-        #mapDiv { width: 100%; height: 100%; }
-        .map-toolbar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
-        .map-btn { padding: 8px 14px; background: rgba(255,255,255,0.2); border: none; border-radius: 16px; color: #fff; font-size: 11px; font-weight: 600; cursor: pointer; }
-        .map-btn.active { background: #007aff; }
-        .map-btn.green { background: #34c759; }
+        /* Status Banner */
+        .status-banner { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: linear-gradient(135deg, #007aff, #5856d6); border-radius: 12px; color: #fff; }
+        .status-banner .label { font-size: 12px; opacity: 0.9; }
+        .status-banner .value { font-size: 14px; font-weight: 700; }
 
         /* Stop Button */
-        .stop-btn { padding: 14px; background: #ff3b30; border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
-        .stop-btn:active { background: #d70015; }
+        .stop-btn { padding: 16px; background: #ff3b30; border: none; border-radius: 14px; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(255,59,48,0.3); transition: all 0.2s; }
+        .stop-btn:active { transform: scale(0.98); background: #d70015; }
+
+        /* Map Container */
+        .map-container { flex: 1; min-height: 180px; background: #1d1d1f; border-radius: 14px; position: relative; overflow: hidden; }
+        .map-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #86868b; font-size: 13px; }
+        .map-toolbar { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
+        .map-btn { padding: 10px 18px; background: rgba(255,255,255,0.95); border: none; border-radius: 20px; color: #1d1d1f; font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .map-btn.active { background: #007aff; color: #fff; }
+        .map-btn.green { background: #30d158; color: #fff; }
     </style>
 </head>
 <body>
@@ -89,7 +93,7 @@
     <header class="header">
         <div class="logo">
             <img src="keti.png" alt="">
-            <h1>KETI Robot</h1>
+            <h1>SDV AI Robot</h1>
         </div>
         <div class="status">
             <span class="status-dot" id="statusDot"></span>
@@ -97,130 +101,140 @@
         </div>
     </header>
 
-    <div class="sensor-view">
-        <div class="camera-box">
-            <img id="cameraImg" src="" alt="">
-            <span class="box-label">CAM</span>
+    <div class="main">
+        <div class="sensor-view">
+            <div class="camera-box">
+                <img id="cameraImg" src="" alt="">
+            </div>
+            <div class="lidar-box">
+                <canvas id="lidarCanvas"></canvas>
+            </div>
         </div>
-        <div class="lidar-box">
-            <canvas id="lidarCanvas"></canvas>
-            <span class="box-label">LIDAR</span>
-        </div>
-    </div>
 
-    <nav class="tabs">
-        <button class="tab active" data-page="control">Control</button>
-        <button class="tab" data-page="auto">Auto</button>
-        <button class="tab" data-page="ai">AI</button>
-        <button class="tab" data-page="slam">SLAM</button>
-        <button class="tab" data-page="nav">Nav</button>
-    </nav>
+        <nav class="tabs">
+            <button class="tab active" data-page="control">Control</button>
+            <button class="tab" data-page="auto">Auto</button>
+            <button class="tab" data-page="ai">AI</button>
+            <button class="tab" data-page="slam">SLAM</button>
+            <button class="tab" data-page="nav">Nav</button>
+        </nav>
 
-    <div class="content">
-        <!-- Control Page -->
-        <div class="page active" id="page-control">
-            <div class="card">
-                <div class="joystick-area">
-                    <div class="joystick-zone" id="joystickZone"></div>
-                    <div class="odom-info">
-                        <span>X: <b id="odomX">0.00</b>m</span>
-                        <span>Y: <b id="odomY">0.00</b>m</span>
-                        <span>θ: <b id="odomTh">0</b>°</span>
+        <div class="content">
+            <!-- Control Page -->
+            <div class="page active" id="page-control">
+                <div class="card">
+                    <div class="control-panel">
+                        <div class="odom-display">
+                            <div class="odom-value" id="odomX">0.00</div>
+                            <div class="odom-label">X (m)</div>
+                        </div>
+                        <div class="joystick-container">
+                            <div class="joystick-zone" id="joystickZone"></div>
+                        </div>
+                        <div class="odom-display">
+                            <div class="odom-value" id="odomY">0.00</div>
+                            <div class="odom-label">Y (m)</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="speed-control">
+                        <span class="speed-label">Speed</span>
+                        <input type="range" class="speed-slider" id="speedSlider" min="10" max="150" value="50">
+                        <span class="speed-value" id="speedVal">50%</span>
                     </div>
                 </div>
             </div>
-            <div class="card">
-                <div class="card-title">Speed</div>
-                <div class="speed-row">
-                    <input type="range" class="speed-slider" id="speedSlider" min="10" max="150" value="50">
-                    <span class="speed-val" id="speedVal">50%</span>
-                </div>
-            </div>
-        </div>
 
-        <!-- Auto Page -->
-        <div class="page" id="page-auto">
-            <div class="status-bar">
-                <span>Mode</span>
-                <span id="autoModeText">Manual</span>
-            </div>
-            <div class="card">
-                <div class="card-title">Driving Mode</div>
-                <div class="mode-grid">
-                    <button class="mode-btn active" data-mode="manual"><span class="mode-icon">🎮</span><span class="mode-name">Manual</span></button>
-                    <button class="mode-btn" data-mode="obstacle"><span class="mode-icon">🚧</span><span class="mode-name">Obstacle</span></button>
-                    <button class="mode-btn" data-mode="patrol"><span class="mode-icon">🔄</span><span class="mode-name">Patrol</span></button>
-                    <button class="mode-btn" data-mode="lane"><span class="mode-icon">🛣️</span><span class="mode-name">Lane</span></button>
+            <!-- Auto Page -->
+            <div class="page" id="page-auto">
+                <div class="status-banner">
+                    <span class="label">Driving Mode</span>
+                    <span class="value" id="autoModeText">Manual</span>
                 </div>
-            </div>
-            <div class="card">
-                <div class="card-title">Application</div>
-                <div class="mode-grid">
-                    <button class="mode-btn" data-mode="follower"><span class="mode-icon">👤</span><span class="mode-name">Follower</span></button>
-                    <button class="mode-btn" data-mode="parking"><span class="mode-icon">🅿️</span><span class="mode-name">Parking</span></button>
+                <div class="card">
+                    <div class="card-title">Select Mode</div>
+                    <div class="mode-grid">
+                        <button class="mode-btn active" data-mode="manual"><span class="mode-icon">🎮</span><span class="mode-name">Manual</span></button>
+                        <button class="mode-btn" data-mode="obstacle"><span class="mode-icon">🚧</span><span class="mode-name">Obstacle</span></button>
+                        <button class="mode-btn" data-mode="patrol"><span class="mode-icon">🔄</span><span class="mode-name">Patrol</span></button>
+                        <button class="mode-btn" data-mode="lane"><span class="mode-icon">🛣️</span><span class="mode-name">Lane</span></button>
+                        <button class="mode-btn" data-mode="follower"><span class="mode-icon">👤</span><span class="mode-name">Follow</span></button>
+                        <button class="mode-btn" data-mode="parking"><span class="mode-icon">🅿️</span><span class="mode-name">Parking</span></button>
+                    </div>
                 </div>
+                <button class="stop-btn" id="autoStopBtn">EMERGENCY STOP</button>
             </div>
-            <button class="stop-btn" id="autoStopBtn">STOP</button>
-        </div>
 
-        <!-- AI Page -->
-        <div class="page" id="page-ai">
-            <div class="status-bar">
-                <span>AI</span>
-                <span id="aiModeText">Off</span>
-            </div>
-            <div class="card">
-                <div class="card-title">Detection</div>
-                <div class="mode-grid">
-                    <button class="mode-btn" data-ai="yolo"><span class="mode-icon">🎯</span><span class="mode-name">YOLO</span></button>
-                    <button class="mode-btn" data-ai="person"><span class="mode-icon">👁️</span><span class="mode-name">Person</span></button>
-                    <button class="mode-btn" data-ai="body"><span class="mode-icon">🏃</span><span class="mode-name">Body</span></button>
-                    <button class="mode-btn" data-ai="gesture"><span class="mode-icon">✋</span><span class="mode-name">Gesture</span></button>
+            <!-- AI Page -->
+            <div class="page" id="page-ai">
+                <div class="status-banner">
+                    <span class="label">AI Engine</span>
+                    <span class="value" id="aiModeText">Off</span>
+                </div>
+                <div class="card">
+                    <div class="card-title">Detection Model</div>
+                    <div class="mode-grid">
+                        <button class="mode-btn" data-ai="yolo"><span class="mode-icon">🎯</span><span class="mode-name">YOLO</span></button>
+                        <button class="mode-btn" data-ai="person"><span class="mode-icon">👁️</span><span class="mode-name">Person</span></button>
+                        <button class="mode-btn" data-ai="body"><span class="mode-icon">🏃</span><span class="mode-name">Body</span></button>
+                        <button class="mode-btn" data-ai="gesture"><span class="mode-icon">✋</span><span class="mode-name">Gesture</span></button>
+                        <button class="mode-btn" data-ai="multi"><span class="mode-icon">🤖</span><span class="mode-name">Multi</span></button>
+                        <button class="mode-btn active" data-ai="off"><span class="mode-icon">⭕</span><span class="mode-name">Off</span></button>
+                    </div>
                 </div>
             </div>
-            <div class="card">
-                <div class="card-title">Engine</div>
-                <div class="mode-grid">
-                    <button class="mode-btn" data-ai="multi"><span class="mode-icon">🤖</span><span class="mode-name">Multi AI</span></button>
-                    <button class="mode-btn active" data-ai="off"><span class="mode-icon">⭕</span><span class="mode-name">Off</span></button>
-                </div>
-            </div>
-        </div>
 
-        <!-- SLAM Page -->
-        <div class="page" id="page-slam">
-            <div class="map-container">
-                <div id="slamMapDiv"></div>
-                <div class="map-toolbar">
-                    <button class="map-btn" id="btnSlamStart">Start</button>
-                    <button class="map-btn" id="btnSlamSave">Save</button>
-                    <button class="map-btn" id="btnSlamStop">Stop</button>
+            <!-- SLAM Page -->
+            <div class="page" id="page-slam">
+                <div class="map-container">
+                    <div class="map-placeholder">SLAM Map View</div>
+                    <div class="map-toolbar">
+                        <button class="map-btn" id="btnSlamStart">Start</button>
+                        <button class="map-btn" id="btnSlamSave">Save</button>
+                        <button class="map-btn" id="btnSlamStop">Stop</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="control-panel">
+                        <div class="odom-display">
+                            <div class="odom-value" id="slamX">0.00</div>
+                            <div class="odom-label">X (m)</div>
+                        </div>
+                        <div class="joystick-container">
+                            <div class="joystick-zone" id="slamJoystick"></div>
+                        </div>
+                        <div class="odom-display">
+                            <div class="odom-value" id="slamY">0.00</div>
+                            <div class="odom-label">Y (m)</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="card">
-                <div class="joystick-area">
-                    <div class="joystick-zone" id="slamJoystick"></div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Nav Page -->
-        <div class="page" id="page-nav">
-            <div class="map-container">
-                <div id="navMapDiv"></div>
-                <div class="map-toolbar">
-                    <button class="map-btn" id="btnNavStart">Start</button>
-                    <button class="map-btn" id="btnNavGoal">Goal</button>
-                    <button class="map-btn" id="btnNavStop">Stop</button>
+            <!-- Nav Page -->
+            <div class="page" id="page-nav">
+                <div class="map-container">
+                    <div class="map-placeholder">Navigation Map</div>
+                    <div class="map-toolbar">
+                        <button class="map-btn" id="btnNavStart">Start</button>
+                        <button class="map-btn" id="btnNavGoal">Set Goal</button>
+                        <button class="map-btn" id="btnNavStop">Stop</button>
+                    </div>
                 </div>
-            </div>
-            <div class="card">
-                <div class="joystick-area">
-                    <div class="joystick-zone" id="navJoystick"></div>
-                    <div class="odom-info">
-                        <span>X: <b id="navX">0.00</b></span>
-                        <span>Y: <b id="navY">0.00</b></span>
-                        <span>Status: <b id="navStatus">Ready</b></span>
+                <div class="card">
+                    <div class="control-panel">
+                        <div class="odom-display">
+                            <div class="odom-value" id="navX">0.00</div>
+                            <div class="odom-label">X (m)</div>
+                        </div>
+                        <div class="joystick-container">
+                            <div class="joystick-zone" id="navJoystick"></div>
+                        </div>
+                        <div class="odom-display">
+                            <div class="odom-value" id="navY">0.00</div>
+                            <div class="odom-label">Y (m)</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -324,7 +338,6 @@ function setupTopics() {
     cmdVelPub = new ROSLIB.Topic({ ros, name: '/cmd_vel', messageType: 'geometry_msgs/Twist' });
     modePub = new ROSLIB.Topic({ ros, name: '/robot/mode', messageType: 'std_msgs/String' });
     aiPub = new ROSLIB.Topic({ ros, name: '/robot/ai_mode', messageType: 'std_msgs/String' });
-
     new ROSLIB.Topic({ ros, name: '/scan', messageType: 'sensor_msgs/LaserScan', throttle_rate: 150 }).subscribe(onLidar);
     new ROSLIB.Topic({ ros, name: '/odom', messageType: 'nav_msgs/Odometry' }).subscribe(onOdom);
 }
@@ -344,11 +357,11 @@ function onLidar(scan) {
 }
 
 function distColor(d) {
-    if (d < 0.5) return '#ff0000';
-    if (d < 1) return '#ff4400';
-    if (d < 2) return '#ff8800';
-    if (d < 3) return '#ffff00';
-    return '#00ff00';
+    if (d < 0.5) return '#ff3b30';
+    if (d < 1) return '#ff9500';
+    if (d < 2) return '#ffcc00';
+    if (d < 3) return '#34c759';
+    return '#30d158';
 }
 
 function drawLidar() {
@@ -356,22 +369,19 @@ function drawLidar() {
     const ctx = lidarCanvas.getContext('2d');
     const cx = lidarCanvas.width / 2, cy = lidarCanvas.height / 2;
     const sc = Math.min(lidarCanvas.width, lidarCanvas.height) / 8;
-
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = '#1d1d1f';
     ctx.fillRect(0, 0, lidarCanvas.width, lidarCanvas.height);
-
     ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
     [1, 2, 3].forEach(r => { ctx.beginPath(); ctx.arc(cx, cy, r * sc, 0, Math.PI * 2); ctx.stroke(); });
-
     lidarPts.forEach(p => {
         ctx.fillStyle = distColor(p.d);
         ctx.beginPath();
         ctx.arc(cx + p.x * sc, cy + p.y * sc, 2, 0, Math.PI * 2);
         ctx.fill();
     });
-
-    ctx.fillStyle = '#00aaff';
-    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#007aff';
+    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
 }
 
 // Odometry
@@ -380,15 +390,13 @@ function onOdom(msg) {
     pose.y = msg.pose.pose.position.y;
     const q = msg.pose.pose.orientation;
     pose.th = Math.atan2(2 * (q.w * q.z), 1 - 2 * q.z * q.z);
-
-    document.getElementById('odomX').textContent = pose.x.toFixed(2);
-    document.getElementById('odomY').textContent = pose.y.toFixed(2);
-    document.getElementById('odomTh').textContent = Math.round(pose.th * 180 / Math.PI);
-
-    const navX = document.getElementById('navX');
-    const navY = document.getElementById('navY');
-    if (navX) navX.textContent = pose.x.toFixed(2);
-    if (navY) navY.textContent = pose.y.toFixed(2);
+    const x = pose.x.toFixed(2), y = pose.y.toFixed(2);
+    document.getElementById('odomX').textContent = x;
+    document.getElementById('odomY').textContent = y;
+    ['slamX', 'slamY', 'navX', 'navY'].forEach((id, i) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = i % 2 === 0 ? x : y;
+    });
 }
 
 // Joysticks
@@ -396,7 +404,7 @@ let joysticks = {};
 function setupJoystick(id) {
     const zone = document.getElementById(id);
     if (!zone) return null;
-    return nipplejs.create({ zone, mode: 'static', position: { left: '50%', top: '50%' }, color: '#007aff', size: 100 })
+    return nipplejs.create({ zone, mode: 'static', position: { left: '50%', top: '50%' }, color: '#007aff', size: 120 })
         .on('move', (e, d) => {
             const f = Math.min(d.force, 2) / 2, a = d.angle.radian;
             sendVel(Math.sin(a) * f * MAX_LIN * speedMult * 2, -Math.cos(a) * f * MAX_ANG * speedMult * 2);
@@ -417,7 +425,7 @@ let tL = 0, tA = 0, cL = 0, cA = 0, vLoop = null;
 function sendVel(l, a) { tL = l; tA = a; if (!vLoop) vLoop = setInterval(pubVel, 20); }
 function pubVel() {
     if (!cmdVelPub || !isConnected) return;
-    cL += (tL - cL) * 0.1; cA += (tA - cA) * 0.1;
+    cL += (tL - cL) * 0.15; cA += (tA - cA) * 0.15;
     if (Math.abs(cL) < 0.005) cL = 0;
     if (Math.abs(cA) < 0.005) cA = 0;
     cmdVelPub.publish(new ROSLIB.Message({ linear: { x: cL, y: 0, z: 0 }, angular: { x: 0, y: 0, z: cA } }));
