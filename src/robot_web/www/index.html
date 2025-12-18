@@ -6,9 +6,7 @@
     <title>SDV</title>
     <link rel="icon" href="keti.png">
     <script src="js/eventemitter2.min.js"></script>
-    <script src="js/easeljs.min.js"></script>
     <script src="js/roslib.min.js"></script>
-    <script src="js/ros2d.min.js"></script>
     <script src="js/nipplejs.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -36,27 +34,29 @@
         .camera-wrap img { object-fit: contain; }
         .camera-wrap canvas { pointer-events: none; }
 
-        .map-wrap { flex: 1; background: #1c1c1e; position: relative; min-height: 150px; overflow: hidden; }
+        .map-wrap { flex: 1; background: #1c1c1e; position: relative; min-height: 200px; overflow: hidden; }
         #mapCanvas { width: 100%; height: 100%; display: block; background: #2c2c2e; touch-action: none; }
-        .map-btns { position: absolute; top: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; z-index: 10; }
-        .mbtn { padding: 8px 14px; background: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; color: #1c1c1e; box-shadow: 0 2px 8px rgba(0,0,0,0.2); cursor: pointer; }
+        .map-btns { position: absolute; top: 8px; left: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 10; }
+        .map-btns-right { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 10; }
+        .mbtn { padding: 6px 12px; background: #fff; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; color: #1c1c1e; box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: pointer; }
         .mbtn:active { transform: scale(0.95); }
         .mbtn.on { background: #007aff; color: #fff; }
         .mbtn.red { background: #ff3b30; color: #fff; }
         .mbtn.green { background: #34c759; color: #fff; }
-        .mstat { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 6px 10px; border-radius: 6px; font-size: 11px; color: #fff; font-weight: 500; }
-        .map-info { position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); padding: 6px 10px; border-radius: 6px; font-size: 10px; color: #8e8e93; }
+        .mbtn.orange { background: #ff9500; color: #fff; }
+        .mstat { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.8); padding: 6px 10px; border-radius: 6px; font-size: 10px; color: #fff; font-weight: 500; }
+        .map-info { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); padding: 6px 10px; border-radius: 6px; font-size: 10px; color: #8e8e93; text-align: right; line-height: 1.4; }
 
-        .ctrl-row { display: flex; flex: 1; background: #fff; border-top: 1px solid #d1d1d6; min-height: 180px; }
+        .ctrl-row { display: flex; flex: 1; background: #fff; border-top: 1px solid #d1d1d6; min-height: 160px; }
         .lidar-box { flex: 1; background: #000; position: relative; }
         .lidar-box canvas { display: block; width: 100%; height: 100%; }
         .joy-box { flex: 1; background: #f2f2f7; position: relative; }
-        .joy-zone { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 160px; background: radial-gradient(circle, #fff 0%, #e5e5ea 100%); border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        .joy-zone { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140px; height: 140px; background: radial-gradient(circle, #fff 0%, #e5e5ea 100%); border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
 
-        .bottom-bar { display: flex; align-items: center; justify-content: center; padding: 8px 12px; background: #fff; border-top: 1px solid #e5e5ea; flex-shrink: 0; gap: 16px; }
+        .bottom-bar { display: flex; align-items: center; justify-content: center; padding: 6px 12px; background: #fff; border-top: 1px solid #e5e5ea; flex-shrink: 0; gap: 16px; }
         .odom-item { display: flex; align-items: center; gap: 4px; }
-        .olbl { font-size: 11px; color: #8e8e93; font-weight: 600; }
-        .oval { font-size: 14px; font-weight: 700; color: #1c1c1e; min-width: 50px; }
+        .olbl { font-size: 10px; color: #8e8e93; font-weight: 600; }
+        .oval { font-size: 13px; font-weight: 700; color: #1c1c1e; min-width: 45px; }
 
         .ai-btn { position: absolute; top: 8px; right: 8px; padding: 8px 16px; background: rgba(255,255,255,0.9); border: none; border-radius: 8px; font-size: 12px; font-weight: 600; z-index: 5; cursor: pointer; }
         .ai-btn:active { transform: scale(0.95); }
@@ -99,8 +99,12 @@
                     <button class="mbtn" id="bNav">Nav</button>
                     <button class="mbtn red" id="bStop">Stop</button>
                 </div>
+                <div class="map-btns-right">
+                    <button class="mbtn orange" id="bPose">Pose</button>
+                    <button class="mbtn" id="bGoal">Goal</button>
+                </div>
                 <div class="mstat" id="mstat">Ready</div>
-                <div class="map-info" id="mapInfo">Tap map to set goal</div>
+                <div class="map-info" id="mapInfo">Map: --</div>
             </div>
             <div class="ctrl-row">
                 <div class="lidar-box"><canvas id="lid2"></canvas></div>
@@ -136,7 +140,8 @@
 <script>
 document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 
-let ros, cmdVel, aiPub, modePub, goalPub, savePub, conn = false, pts = [], yolo = false, boxes = [];
+let ros, cmdVel, aiPub, modePub, goalPub, initPosePub, savePub, conn = false;
+let pts = [], yolo = false, boxes = [];
 const ML = 0.3, MA = 1.5, CAM_W = 640, CAM_H = 360;
 const lids = ['lid1','lid2','lid3'].map(id => document.getElementById(id));
 const boxCanvas = document.getElementById('boxCanvas');
@@ -144,9 +149,15 @@ const mapCanvas = document.getElementById('mapCanvas');
 const mapCtx = mapCanvas ? mapCanvas.getContext('2d') : null;
 
 // Map state
-let mapData = null, mapInfo = null, robotPose = {x:0, y:0, theta:0};
-let globalPath = [], localPath = [], goalPose = null;
-let mapScale = 1, mapOffsetX = 0, mapOffsetY = 0;
+let mapData = null, mapInfo = null;
+let robotPose = {x: 0, y: 0, theta: 0};
+let globalPath = [], localPath = [];
+let goalPose = null, initPose = null;
+let mapMode = 'none'; // 'none', 'pose', 'goal'
+let dragStart = null, dragEnd = null;
+
+// Pixel per meter for map display (adjustable)
+let ppm = 50; // 50 pixels per meter default
 
 function initLids() {
     lids.forEach(c => { if(c?.parentElement) { c.width = c.parentElement.clientWidth; c.height = c.parentElement.clientHeight; } });
@@ -202,20 +213,24 @@ document.getElementById('bSlam').onclick = function() {
     this.classList.toggle('on', slam);
     document.getElementById('mstat').textContent = slam ? 'SLAM Active' : 'Ready';
     if(modePub) modePub.publish(new ROSLIB.Message({data: slam ? 'slam' : 'manual'}));
+    mapMode = 'none';
+    updateModeButtons();
 };
 document.getElementById('bNav').onclick = function() {
     if(slam) { slam = false; document.getElementById('bSlam').classList.remove('on'); }
     nav = !nav;
     this.classList.toggle('on', nav);
-    document.getElementById('mstat').textContent = nav ? 'Nav Active - Tap to set goal' : 'Ready';
+    document.getElementById('mstat').textContent = nav ? 'Nav Active' : 'Ready';
     if(modePub) modePub.publish(new ROSLIB.Message({data: nav ? 'nav' : 'manual'}));
+    mapMode = 'none';
+    updateModeButtons();
 };
 document.getElementById('bSave').onclick = function() {
     if(savePub) {
         savePub.publish(new ROSLIB.Message({data: 'save'}));
-        document.getElementById('mstat').textContent = 'Saving map...';
+        document.getElementById('mstat').textContent = 'Saving...';
         setTimeout(() => {
-            document.getElementById('mstat').textContent = slam ? 'SLAM Active' : (nav ? 'Nav Active' : 'Map Saved');
+            document.getElementById('mstat').textContent = slam ? 'SLAM Active' : (nav ? 'Nav Active' : 'Saved!');
         }, 2000);
     }
 };
@@ -225,50 +240,144 @@ document.getElementById('bStop').onclick = () => {
     document.getElementById('bNav').classList.remove('on');
     document.getElementById('mstat').textContent = 'Ready';
     if(modePub) modePub.publish(new ROSLIB.Message({data: 'manual'}));
-    goalPose = null;
+    goalPose = null; initPose = null;
     globalPath = []; localPath = [];
+    mapMode = 'none';
+    updateModeButtons();
     stop();
     drawMap();
 };
 
-// Touch goal on map
-mapCanvas?.addEventListener('click', function(e) {
-    if(!nav || !mapInfo) return;
+// Pose/Goal mode buttons
+document.getElementById('bPose').onclick = function() {
+    mapMode = mapMode === 'pose' ? 'none' : 'pose';
+    updateModeButtons();
+    document.getElementById('mstat').textContent = mapMode === 'pose' ? 'Tap & drag to set initial pose' : (nav ? 'Nav Active' : 'Ready');
+};
+document.getElementById('bGoal').onclick = function() {
+    mapMode = mapMode === 'goal' ? 'none' : 'goal';
+    updateModeButtons();
+    document.getElementById('mstat').textContent = mapMode === 'goal' ? 'Tap & drag to set goal' : (nav ? 'Nav Active' : 'Ready');
+};
+
+function updateModeButtons() {
+    document.getElementById('bPose').classList.toggle('on', mapMode === 'pose');
+    document.getElementById('bGoal').classList.toggle('on', mapMode === 'goal');
+}
+
+// Map touch/click handling
+function getMapCoords(e) {
     const rect = mapCanvas.getBoundingClientRect();
-    const cx = e.clientX - rect.left;
-    const cy = e.clientY - rect.top;
-
-    // Convert canvas coords to map coords
-    const mapCenterX = mapCanvas.width / 2 + mapOffsetX;
-    const mapCenterY = mapCanvas.height / 2 + mapOffsetY;
-    const mx = (cx - mapCenterX) / mapScale;
-    const my = -(cy - mapCenterY) / mapScale; // Y flipped
-
-    // Convert to world coordinates
-    const wx = mx + mapInfo.origin.position.x + (mapInfo.width * mapInfo.resolution / 2);
-    const wy = my + mapInfo.origin.position.y + (mapInfo.height * mapInfo.resolution / 2);
-
-    // Calculate orientation toward goal from current position
-    const dx = wx - robotPose.x;
-    const dy = wy - robotPose.y;
-    const theta = Math.atan2(dy, dx);
-
-    goalPose = {x: wx, y: wy, theta: theta};
-    document.getElementById('mapInfo').textContent = `Goal: ${wx.toFixed(2)}, ${wy.toFixed(2)}`;
-
-    // Publish goal
-    if(goalPub) {
-        const q = {x:0, y:0, z:Math.sin(theta/2), w:Math.cos(theta/2)};
-        goalPub.publish(new ROSLIB.Message({
-            header: {stamp: {sec:0, nanosec:0}, frame_id: 'map'},
-            pose: {
-                position: {x: wx, y: wy, z: 0},
-                orientation: q
-            }
-        }));
+    let clientX, clientY;
+    if(e.touches) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
     }
+    return {
+        cx: clientX - rect.left,
+        cy: clientY - rect.top
+    };
+}
+
+function canvasToWorld(cx, cy) {
+    if(!mapInfo) return {x: 0, y: 0};
+    const cw = mapCanvas.width, ch = mapCanvas.height;
+    // Map center in canvas
+    const mapCenterX = cw / 2;
+    const mapCenterY = ch / 2;
+    // Canvas to world (Y flipped)
+    const wx = (cx - mapCenterX) / ppm + robotPose.x;
+    const wy = -(cy - mapCenterY) / ppm + robotPose.y;
+    return {x: wx, y: wy};
+}
+
+mapCanvas?.addEventListener('mousedown', onDragStart);
+mapCanvas?.addEventListener('touchstart', onDragStart);
+mapCanvas?.addEventListener('mousemove', onDragMove);
+mapCanvas?.addEventListener('touchmove', onDragMove);
+mapCanvas?.addEventListener('mouseup', onDragEnd);
+mapCanvas?.addEventListener('touchend', onDragEnd);
+
+function onDragStart(e) {
+    if(mapMode === 'none') return;
+    e.preventDefault();
+    const coords = getMapCoords(e);
+    dragStart = canvasToWorld(coords.cx, coords.cy);
+    dragEnd = null;
+}
+
+function onDragMove(e) {
+    if(!dragStart || mapMode === 'none') return;
+    e.preventDefault();
+    const coords = getMapCoords(e);
+    dragEnd = canvasToWorld(coords.cx, coords.cy);
     drawMap();
-});
+}
+
+function onDragEnd(e) {
+    if(!dragStart || mapMode === 'none') return;
+    e.preventDefault();
+
+    let theta = 0;
+    if(dragEnd && (Math.abs(dragEnd.x - dragStart.x) > 0.1 || Math.abs(dragEnd.y - dragStart.y) > 0.1)) {
+        theta = Math.atan2(dragEnd.y - dragStart.y, dragEnd.x - dragStart.x);
+    } else {
+        theta = robotPose.theta;
+    }
+
+    if(mapMode === 'pose') {
+        initPose = {x: dragStart.x, y: dragStart.y, theta: theta};
+        publishInitPose(initPose);
+        document.getElementById('mstat').textContent = `Pose: ${dragStart.x.toFixed(2)}, ${dragStart.y.toFixed(2)}`;
+    } else if(mapMode === 'goal') {
+        goalPose = {x: dragStart.x, y: dragStart.y, theta: theta};
+        publishGoal(goalPose);
+        document.getElementById('mstat').textContent = `Goal: ${dragStart.x.toFixed(2)}, ${dragStart.y.toFixed(2)}`;
+    }
+
+    dragStart = null;
+    dragEnd = null;
+    mapMode = 'none';
+    updateModeButtons();
+    drawMap();
+}
+
+function publishInitPose(pose) {
+    if(!initPosePub) return;
+    const q = {x:0, y:0, z:Math.sin(pose.theta/2), w:Math.cos(pose.theta/2)};
+    initPosePub.publish(new ROSLIB.Message({
+        header: {stamp: {sec:0, nanosec:0}, frame_id: 'map'},
+        pose: {
+            pose: {
+                position: {x: pose.x, y: pose.y, z: 0},
+                orientation: q
+            },
+            covariance: [0.25, 0, 0, 0, 0, 0,
+                         0, 0.25, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0, 0.0685]
+        }
+    }));
+    console.log('Initial pose set:', pose);
+}
+
+function publishGoal(pose) {
+    if(!goalPub) return;
+    const q = {x:0, y:0, z:Math.sin(pose.theta/2), w:Math.cos(pose.theta/2)};
+    goalPub.publish(new ROSLIB.Message({
+        header: {stamp: {sec:0, nanosec:0}, frame_id: 'map'},
+        pose: {
+            position: {x: pose.x, y: pose.y, z: 0},
+            orientation: q
+        }
+    }));
+    console.log('Goal set:', pose);
+}
 
 // ROS
 function connect() {
@@ -295,19 +404,30 @@ function setup() {
     modePub = new ROSLIB.Topic({ros, name:'/robot/mode', messageType:'std_msgs/String'});
     savePub = new ROSLIB.Topic({ros, name:'/robot/save_map', messageType:'std_msgs/String'});
     goalPub = new ROSLIB.Topic({ros, name:'/goal_pose', messageType:'geometry_msgs/PoseStamped'});
+    initPosePub = new ROSLIB.Topic({ros, name:'/initialpose', messageType:'geometry_msgs/PoseWithCovarianceStamped'});
 
     new ROSLIB.Topic({ros, name:'/scan', messageType:'sensor_msgs/LaserScan', throttle_rate:150}).subscribe(onScan);
     new ROSLIB.Topic({ros, name:'/odom', messageType:'nav_msgs/Odometry'}).subscribe(onOdom);
     new ROSLIB.Topic({ros, name:'/detections', messageType:'std_msgs/String'}).subscribe(onDet);
     new ROSLIB.Topic({ros, name:'/map', messageType:'nav_msgs/OccupancyGrid', throttle_rate:1000}).subscribe(onMap);
     new ROSLIB.Topic({ros, name:'/plan', messageType:'nav_msgs/Path', throttle_rate:500}).subscribe(onGlobalPath);
-    new ROSLIB.Topic({ros, name:'/local_plan', messageType:'nav_msgs/Path', throttle_rate:200}).subscribe(onLocalPath);
+    new ROSLIB.Topic({ros, name:'/local_plan', messageType:'nav_msgs/Path', throttle_rate:300}).subscribe(onLocalPath);
 }
 
 // Map callback
 function onMap(msg) {
     mapInfo = msg.info;
     mapData = msg.data;
+
+    // Auto-adjust ppm based on map size
+    if(mapCanvas && mapInfo) {
+        const mapWidthM = mapInfo.width * mapInfo.resolution;
+        const mapHeightM = mapInfo.height * mapInfo.resolution;
+        const maxDim = Math.max(mapWidthM, mapHeightM);
+        const canvasMin = Math.min(mapCanvas.width, mapCanvas.height);
+        ppm = Math.max(20, Math.min(100, (canvasMin * 0.8) / maxDim));
+    }
+
     drawMap();
 }
 
@@ -324,82 +444,100 @@ function onLocalPath(msg) {
 function drawMap() {
     if(!mapCtx || !mapCanvas.width) return;
     const cw = mapCanvas.width, ch = mapCanvas.height;
+
+    // Clear
     mapCtx.fillStyle = '#2c2c2e';
     mapCtx.fillRect(0, 0, cw, ch);
+
+    // Grid lines (every 1m)
+    mapCtx.strokeStyle = '#3a3a3c';
+    mapCtx.lineWidth = 0.5;
+    const gridSize = ppm; // 1 meter
+    const cx = cw / 2, cy = ch / 2;
+
+    // Vertical lines
+    for(let x = cx % gridSize; x < cw; x += gridSize) {
+        mapCtx.beginPath();
+        mapCtx.moveTo(x, 0);
+        mapCtx.lineTo(x, ch);
+        mapCtx.stroke();
+    }
+    // Horizontal lines
+    for(let y = cy % gridSize; y < ch; y += gridSize) {
+        mapCtx.beginPath();
+        mapCtx.moveTo(0, y);
+        mapCtx.lineTo(cw, y);
+        mapCtx.stroke();
+    }
 
     if(!mapData || !mapInfo) {
         mapCtx.fillStyle = '#666';
         mapCtx.font = '14px sans-serif';
         mapCtx.textAlign = 'center';
         mapCtx.fillText('Press SLAM to start mapping', cw/2, ch/2);
+        document.getElementById('mapInfo').textContent = 'Map: --';
         return;
     }
 
     const mw = mapInfo.width;
     const mh = mapInfo.height;
     const res = mapInfo.resolution;
+    const ox = mapInfo.origin.position.x;
+    const oy = mapInfo.origin.position.y;
 
-    // Calculate scale to fit map in canvas
-    const scaleX = cw / (mw * res);
-    const scaleY = ch / (mh * res);
-    mapScale = Math.min(scaleX, scaleY) * 0.9;
+    // Update map info display
+    document.getElementById('mapInfo').innerHTML =
+        `${(mw*res).toFixed(1)}m × ${(mh*res).toFixed(1)}m<br>` +
+        `${ppm.toFixed(0)} px/m`;
 
-    const centerX = cw / 2;
-    const centerY = ch / 2;
-
-    // Draw occupancy grid
-    const imgData = mapCtx.createImageData(mw, mh);
-    for(let i = 0; i < mapData.length; i++) {
-        const v = mapData[i];
-        const idx = i * 4;
-        if(v === -1) { // Unknown
-            imgData.data[idx] = 60;
-            imgData.data[idx+1] = 60;
-            imgData.data[idx+2] = 62;
-        } else if(v === 0) { // Free
-            imgData.data[idx] = 240;
-            imgData.data[idx+1] = 240;
-            imgData.data[idx+2] = 240;
-        } else { // Occupied
-            imgData.data[idx] = 30;
-            imgData.data[idx+1] = 30;
-            imgData.data[idx+2] = 30;
-        }
-        imgData.data[idx+3] = 255;
+    // World to canvas helper
+    function w2c(wx, wy) {
+        const dx = wx - robotPose.x;
+        const dy = wy - robotPose.y;
+        return {
+            x: cx + dx * ppm,
+            y: cy - dy * ppm
+        };
     }
 
-    // Create temp canvas for map image
-    const tmpCanvas = document.createElement('canvas');
-    tmpCanvas.width = mw;
-    tmpCanvas.height = mh;
-    const tmpCtx = tmpCanvas.getContext('2d');
-    tmpCtx.putImageData(imgData, 0, 0);
+    // Draw occupancy grid cell by cell
+    const cellSize = res * ppm;
+    if(cellSize >= 1) {
+        for(let i = 0; i < mapData.length; i++) {
+            const v = mapData[i];
+            const gx = i % mw;
+            const gy = Math.floor(i / mw);
 
-    // Draw scaled map (centered, flipped Y)
-    mapCtx.save();
-    mapCtx.translate(centerX, centerY);
-    mapCtx.scale(mapScale, -mapScale); // Flip Y
-    mapCtx.drawImage(tmpCanvas, -mw/2, -mh/2);
-    mapCtx.restore();
+            // Grid to world
+            const wx = ox + (gx + 0.5) * res;
+            const wy = oy + (gy + 0.5) * res;
 
-    // Helper to convert world to canvas
-    function w2c(wx, wy) {
-        const ox = mapInfo.origin.position.x;
-        const oy = mapInfo.origin.position.y;
-        const mx = (wx - ox) / res - mw/2;
-        const my = (wy - oy) / res - mh/2;
-        return {
-            x: centerX + mx * mapScale,
-            y: centerY - my * mapScale // Flip Y
-        };
+            // World to canvas
+            const p = w2c(wx, wy);
+
+            // Skip if outside canvas
+            if(p.x < -cellSize || p.x > cw + cellSize || p.y < -cellSize || p.y > ch + cellSize) continue;
+
+            // Color
+            if(v === -1) {
+                mapCtx.fillStyle = '#3c3c3e';
+            } else if(v === 0) {
+                mapCtx.fillStyle = '#e0e0e0';
+            } else {
+                mapCtx.fillStyle = '#1a1a1a';
+            }
+
+            mapCtx.fillRect(p.x - cellSize/2, p.y - cellSize/2, cellSize, cellSize);
+        }
     }
 
     // Draw global path (blue)
     if(globalPath.length > 1) {
         mapCtx.strokeStyle = '#007aff';
-        mapCtx.lineWidth = 2;
+        mapCtx.lineWidth = 3;
+        mapCtx.setLineDash([]);
         mapCtx.beginPath();
-        const p0 = w2c(globalPath[0].x, globalPath[0].y);
+        let p0 = w2c(globalPath[0].x, globalPath[0].y);
         mapCtx.moveTo(p0.x, p0.y);
         for(let i = 1; i < globalPath.length; i++) {
             const p = w2c(globalPath[i].x, globalPath[i].y);
@@ -408,49 +546,93 @@ function drawMap() {
         mapCtx.stroke();
     }
 
-    // Draw local path (green)
+    // Draw local path (green dashed)
     if(localPath.length > 1) {
         mapCtx.strokeStyle = '#34c759';
         mapCtx.lineWidth = 2;
+        mapCtx.setLineDash([5, 5]);
         mapCtx.beginPath();
-        const p0 = w2c(localPath[0].x, localPath[0].y);
+        let p0 = w2c(localPath[0].x, localPath[0].y);
         mapCtx.moveTo(p0.x, p0.y);
         for(let i = 1; i < localPath.length; i++) {
             const p = w2c(localPath[i].x, localPath[i].y);
             mapCtx.lineTo(p.x, p.y);
         }
         mapCtx.stroke();
+        mapCtx.setLineDash([]);
     }
 
-    // Draw goal (red marker)
+    // Draw initial pose (orange)
+    if(initPose) {
+        const ip = w2c(initPose.x, initPose.y);
+        mapCtx.fillStyle = '#ff9500';
+        mapCtx.beginPath();
+        mapCtx.arc(ip.x, ip.y, 8, 0, Math.PI*2);
+        mapCtx.fill();
+        // Direction
+        mapCtx.strokeStyle = '#ff9500';
+        mapCtx.lineWidth = 3;
+        mapCtx.beginPath();
+        mapCtx.moveTo(ip.x, ip.y);
+        mapCtx.lineTo(ip.x + Math.cos(-initPose.theta) * 20, ip.y + Math.sin(-initPose.theta) * 20);
+        mapCtx.stroke();
+    }
+
+    // Draw goal (red)
     if(goalPose) {
         const g = w2c(goalPose.x, goalPose.y);
         mapCtx.fillStyle = '#ff3b30';
         mapCtx.beginPath();
-        mapCtx.arc(g.x, g.y, 8, 0, Math.PI*2);
+        mapCtx.arc(g.x, g.y, 10, 0, Math.PI*2);
+        mapCtx.fill();
+        mapCtx.fillStyle = '#fff';
+        mapCtx.beginPath();
+        mapCtx.arc(g.x, g.y, 4, 0, Math.PI*2);
         mapCtx.fill();
         // Direction arrow
         mapCtx.strokeStyle = '#ff3b30';
-        mapCtx.lineWidth = 2;
+        mapCtx.lineWidth = 3;
         mapCtx.beginPath();
         mapCtx.moveTo(g.x, g.y);
-        mapCtx.lineTo(g.x + Math.cos(-goalPose.theta) * 15, g.y + Math.sin(-goalPose.theta) * 15);
+        mapCtx.lineTo(g.x + Math.cos(-goalPose.theta) * 25, g.y + Math.sin(-goalPose.theta) * 25);
         mapCtx.stroke();
     }
 
-    // Draw robot (blue arrow)
+    // Draw drag preview
+    if(dragStart && mapMode !== 'none') {
+        const ds = w2c(dragStart.x, dragStart.y);
+        mapCtx.fillStyle = mapMode === 'pose' ? 'rgba(255,149,0,0.5)' : 'rgba(255,59,48,0.5)';
+        mapCtx.beginPath();
+        mapCtx.arc(ds.x, ds.y, 10, 0, Math.PI*2);
+        mapCtx.fill();
+
+        if(dragEnd) {
+            const theta = Math.atan2(dragEnd.y - dragStart.y, dragEnd.x - dragStart.x);
+            mapCtx.strokeStyle = mapMode === 'pose' ? '#ff9500' : '#ff3b30';
+            mapCtx.lineWidth = 3;
+            mapCtx.beginPath();
+            mapCtx.moveTo(ds.x, ds.y);
+            mapCtx.lineTo(ds.x + Math.cos(-theta) * 30, ds.y + Math.sin(-theta) * 30);
+            mapCtx.stroke();
+        }
+    }
+
+    // Draw robot (blue triangle)
     const r = w2c(robotPose.x, robotPose.y);
+    mapCtx.save();
+    mapCtx.translate(r.x, r.y);
+    mapCtx.rotate(-robotPose.theta);
     mapCtx.fillStyle = '#007aff';
     mapCtx.beginPath();
-    mapCtx.arc(r.x, r.y, 6, 0, Math.PI*2);
+    mapCtx.moveTo(15, 0);
+    mapCtx.lineTo(-8, -10);
+    mapCtx.lineTo(-8, 10);
+    mapCtx.closePath();
     mapCtx.fill();
-    // Robot direction
-    mapCtx.strokeStyle = '#007aff';
-    mapCtx.lineWidth = 3;
-    mapCtx.beginPath();
-    mapCtx.moveTo(r.x, r.y);
-    mapCtx.lineTo(r.x + Math.cos(-robotPose.theta) * 12, r.y + Math.sin(-robotPose.theta) * 12);
+    mapCtx.strokeStyle = '#fff';
+    mapCtx.lineWidth = 2;
     mapCtx.stroke();
+    mapCtx.restore();
 }
 
 // LiDAR
@@ -555,7 +737,7 @@ function mkJoy(id) {
         mode: 'static',
         position: {left: '50%', top: '50%'},
         color: '#8e8e93',
-        size: 120
+        size: 110
     }).on('move', (e, d) => {
         const f = Math.min(d.force, 2) / 2, a = d.angle.radian;
         send(Math.sin(a) * f * ML, -Math.cos(a) * f * MA);
@@ -567,7 +749,7 @@ function initJoys() {
     joys = { j1: mkJoy('jz1'), j2: mkJoy('jz2'), j3: mkJoy('jz3') };
 }
 
-// Velocity (fixed speed, no slider)
+// Velocity
 let tL=0, tA=0, cL=0, cA=0, lp=null, keys={};
 function send(l, a) { tL = l; tA = a; if(!lp) lp = setInterval(pub, 50); }
 function pub() {
@@ -599,6 +781,11 @@ document.onkeydown = e => {
 document.onkeyup = e => {
     if('wasdWASD'.includes(e.key)) { keys[e.key] = false; updateFromKeys(); }
 };
+
+// Periodic map redraw
+setInterval(() => {
+    if(mapData && mapInfo) drawMap();
+}, 200);
 
 setCam();
 connect();

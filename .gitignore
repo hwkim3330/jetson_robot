@@ -32,3 +32,6 @@ Thumbs.db
 *.trt
 # Keep TensorRT engines (small enough)
 !*_fp16.engine
+
+# Map files (generated)
+maps/
