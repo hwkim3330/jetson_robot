@@ -153,11 +153,15 @@ let mapData = null, mapInfo = null;
 let robotPose = {x: 0, y: 0, theta: 0};
 let globalPath = [], localPath = [];
 let goalPose = null, initPose = null;
-let mapMode = 'none'; // 'none', 'pose', 'goal'
+let mapMode = 'none';
 let dragStart = null, dragEnd = null;
 
-// Pixel per meter for map display (adjustable)
-let ppm = 50; // 50 pixels per meter default
+// Cached map image for performance
+let mapImage = null;
+let mapImageDirty = true;
+
+// Fixed scale: 30 pixels per meter
+const PPM = 30;
 
 function initLids() {
     lids.forEach(c => { if(c?.parentElement) { c.width = c.parentElement.clientWidth; c.height = c.parentElement.clientHeight; } });
@@ -172,7 +176,6 @@ function initMapCanvas() {
     if(wrap && mapCanvas) {
         mapCanvas.width = wrap.clientWidth;
         mapCanvas.height = wrap.clientHeight;
-        drawMap();
     }
 }
 window.onresize = () => { initLids(); initBoxCanvas(); initMapCanvas(); };
@@ -245,19 +248,18 @@ document.getElementById('bStop').onclick = () => {
     mapMode = 'none';
     updateModeButtons();
     stop();
-    drawMap();
 };
 
 // Pose/Goal mode buttons
 document.getElementById('bPose').onclick = function() {
     mapMode = mapMode === 'pose' ? 'none' : 'pose';
     updateModeButtons();
-    document.getElementById('mstat').textContent = mapMode === 'pose' ? 'Tap & drag to set initial pose' : (nav ? 'Nav Active' : 'Ready');
+    document.getElementById('mstat').textContent = mapMode === 'pose' ? 'Tap to set pose' : (nav ? 'Nav Active' : 'Ready');
 };
 document.getElementById('bGoal').onclick = function() {
     mapMode = mapMode === 'goal' ? 'none' : 'goal';
     updateModeButtons();
-    document.getElementById('mstat').textContent = mapMode === 'goal' ? 'Tap & drag to set goal' : (nav ? 'Nav Active' : 'Ready');
+    document.getElementById('mstat').textContent = mapMode === 'goal' ? 'Tap to set goal' : (nav ? 'Nav Active' : 'Ready');
 };
 
 function updateModeButtons() {
@@ -265,85 +267,37 @@ function updateModeButtons() {
     document.getElementById('bGoal').classList.toggle('on', mapMode === 'goal');
 }
 
-// Map touch/click handling
-function getMapCoords(e) {
-    const rect = mapCanvas.getBoundingClientRect();
-    let clientX, clientY;
-    if(e.touches) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-    } else {
-        clientX = e.clientX;
-        clientY = e.clientY;
-    }
-    return {
-        cx: clientX - rect.left,
-        cy: clientY - rect.top
-    };
-}
-
-function canvasToWorld(cx, cy) {
-    if(!mapInfo) return {x: 0, y: 0};
-    const cw = mapCanvas.width, ch = mapCanvas.height;
-    // Map center in canvas
-    const mapCenterX = cw / 2;
-    const mapCenterY = ch / 2;
-    // Canvas to world (Y flipped)
-    const wx = (cx - mapCenterX) / ppm + robotPose.x;
-    const wy = -(cy - mapCenterY) / ppm + robotPose.y;
-    return {x: wx, y: wy};
-}
-
-mapCanvas?.addEventListener('mousedown', onDragStart);
-mapCanvas?.addEventListener('touchstart', onDragStart);
-mapCanvas?.addEventListener('mousemove', onDragMove);
-mapCanvas?.addEventListener('touchmove', onDragMove);
-mapCanvas?.addEventListener('mouseup', onDragEnd);
-mapCanvas?.addEventListener('touchend', onDragEnd);
-
-function onDragStart(e) {
+// Map touch handling (simplified - single tap)
+mapCanvas?.addEventListener('click', function(e) {
     if(mapMode === 'none') return;
-    e.preventDefault();
-    const coords = getMapCoords(e);
-    dragStart = canvasToWorld(coords.cx, coords.cy);
-    dragEnd = null;
-}
+    const rect = mapCanvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
 
-function onDragMove(e) {
-    if(!dragStart || mapMode === 'none') return;
-    e.preventDefault();
-    const coords = getMapCoords(e);
-    dragEnd = canvasToWorld(coords.cx, coords.cy);
-    drawMap();
-}
+    // Canvas center
+    const centerX = mapCanvas.width / 2;
+    const centerY = mapCanvas.height / 2;
 
-function onDragEnd(e) {
-    if(!dragStart || mapMode === 'none') return;
-    e.preventDefault();
+    // Canvas to world (robot at center)
+    const wx = robotPose.x + (cx - centerX) / PPM;
+    const wy = robotPose.y - (cy - centerY) / PPM;
 
-    let theta = 0;
-    if(dragEnd && (Math.abs(dragEnd.x - dragStart.x) > 0.1 || Math.abs(dragEnd.y - dragStart.y) > 0.1)) {
-        theta = Math.atan2(dragEnd.y - dragStart.y, dragEnd.x - dragStart.x);
-    } else {
-        theta = robotPose.theta;
-    }
+    // Direction toward robot (facing backward to where we came from)
+    const theta = Math.atan2(robotPose.y - wy, robotPose.x - wx);
 
     if(mapMode === 'pose') {
-        initPose = {x: dragStart.x, y: dragStart.y, theta: theta};
+        initPose = {x: wx, y: wy, theta: theta};
         publishInitPose(initPose);
-        document.getElementById('mstat').textContent = `Pose: ${dragStart.x.toFixed(2)}, ${dragStart.y.toFixed(2)}`;
+        document.getElementById('mstat').textContent = `Pose: ${wx.toFixed(1)}, ${wy.toFixed(1)}`;
     } else if(mapMode === 'goal') {
-        goalPose = {x: dragStart.x, y: dragStart.y, theta: theta};
+        goalPose = {x: wx, y: wy, theta: theta};
         publishGoal(goalPose);
-        document.getElementById('mstat').textContent = `Goal: ${dragStart.x.toFixed(2)}, ${dragStart.y.toFixed(2)}`;
+        document.getElementById('mstat').textContent = `Goal: ${wx.toFixed(1)}, ${wy.toFixed(1)}`;
     }
 
-    dragStart = null;
-    dragEnd = null;
     mapMode = 'none';
     updateModeButtons();
-    drawMap();
-}
+});
 
 function publishInitPose(pose) {
     if(!initPosePub) return;
@@ -351,19 +305,10 @@ function publishInitPose(pose) {
     initPosePub.publish(new ROSLIB.Message({
         header: {stamp: {sec:0, nanosec:0}, frame_id: 'map'},
         pose: {
-            pose: {
-                position: {x: pose.x, y: pose.y, z: 0},
-                orientation: q
-            },
-            covariance: [0.25, 0, 0, 0, 0, 0,
-                         0, 0.25, 0, 0, 0, 0,
-                         0, 0, 0, 0, 0, 0,
-                         0, 0, 0, 0, 0, 0,
-                         0, 0, 0, 0, 0, 0,
-                         0, 0, 0, 0, 0, 0.0685]
+            pose: { position: {x: pose.x, y: pose.y, z: 0}, orientation: q },
+            covariance: [0.25,0,0,0,0,0, 0,0.25,0,0,0,0, 0,0,0,0,0,0, 0,0,0,0,0,0, 0,0,0,0,0,0, 0,0,0,0,0,0.07]
         }
     }));
-    console.log('Initial pose set:', pose);
 }
 
 function publishGoal(pose) {
@@ -371,12 +316,8 @@ function publishGoal(pose) {
     const q = {x:0, y:0, z:Math.sin(pose.theta/2), w:Math.cos(pose.theta/2)};
     goalPub.publish(new ROSLIB.Message({
         header: {stamp: {sec:0, nanosec:0}, frame_id: 'map'},
-        pose: {
-            position: {x: pose.x, y: pose.y, z: 0},
-            orientation: q
-        }
+        pose: { position: {x: pose.x, y: pose.y, z: 0}, orientation: q }
     }));
-    console.log('Goal set:', pose);
 }
 
 // ROS
@@ -406,136 +347,115 @@ function setup() {
     goalPub = new ROSLIB.Topic({ros, name:'/goal_pose', messageType:'geometry_msgs/PoseStamped'});
     initPosePub = new ROSLIB.Topic({ros, name:'/initialpose', messageType:'geometry_msgs/PoseWithCovarianceStamped'});
 
-    new ROSLIB.Topic({ros, name:'/scan', messageType:'sensor_msgs/LaserScan', throttle_rate:150}).subscribe(onScan);
-    new ROSLIB.Topic({ros, name:'/odom', messageType:'nav_msgs/Odometry'}).subscribe(onOdom);
+    new ROSLIB.Topic({ros, name:'/scan', messageType:'sensor_msgs/LaserScan', throttle_rate:200}).subscribe(onScan);
+    new ROSLIB.Topic({ros, name:'/odom', messageType:'nav_msgs/Odometry', throttle_rate:100}).subscribe(onOdom);
     new ROSLIB.Topic({ros, name:'/detections', messageType:'std_msgs/String'}).subscribe(onDet);
-    new ROSLIB.Topic({ros, name:'/map', messageType:'nav_msgs/OccupancyGrid', throttle_rate:1000}).subscribe(onMap);
-    new ROSLIB.Topic({ros, name:'/plan', messageType:'nav_msgs/Path', throttle_rate:500}).subscribe(onGlobalPath);
-    new ROSLIB.Topic({ros, name:'/local_plan', messageType:'nav_msgs/Path', throttle_rate:300}).subscribe(onLocalPath);
+    new ROSLIB.Topic({ros, name:'/map', messageType:'nav_msgs/OccupancyGrid', throttle_rate:2000}).subscribe(onMap);
+    new ROSLIB.Topic({ros, name:'/plan', messageType:'nav_msgs/Path', throttle_rate:1000}).subscribe(onGlobalPath);
+    new ROSLIB.Topic({ros, name:'/local_plan', messageType:'nav_msgs/Path', throttle_rate:500}).subscribe(onLocalPath);
 }
 
-// Map callback
+// Map callback - create cached image
 function onMap(msg) {
     mapInfo = msg.info;
     mapData = msg.data;
+    mapImageDirty = true;
+    updateMapImage();
+}
 
-    // Auto-adjust ppm based on map size
-    if(mapCanvas && mapInfo) {
-        const mapWidthM = mapInfo.width * mapInfo.resolution;
-        const mapHeightM = mapInfo.height * mapInfo.resolution;
-        const maxDim = Math.max(mapWidthM, mapHeightM);
-        const canvasMin = Math.min(mapCanvas.width, mapCanvas.height);
-        ppm = Math.max(20, Math.min(100, (canvasMin * 0.8) / maxDim));
+function updateMapImage() {
+    if(!mapData || !mapInfo || !mapImageDirty) return;
+
+    const mw = mapInfo.width;
+    const mh = mapInfo.height;
+
+    // Create offscreen canvas for map
+    const offscreen = document.createElement('canvas');
+    offscreen.width = mw;
+    offscreen.height = mh;
+    const ctx = offscreen.getContext('2d');
+
+    // Draw map using ImageData (fast!)
+    const imgData = ctx.createImageData(mw, mh);
+    for(let i = 0; i < mapData.length; i++) {
+        const v = mapData[i];
+        const idx = i * 4;
+        if(v === -1) { // Unknown
+            imgData.data[idx] = 50;
+            imgData.data[idx+1] = 50;
+            imgData.data[idx+2] = 52;
+        } else if(v === 0) { // Free
+            imgData.data[idx] = 220;
+            imgData.data[idx+1] = 220;
+            imgData.data[idx+2] = 220;
+        } else { // Occupied
+            imgData.data[idx] = 20;
+            imgData.data[idx+1] = 20;
+            imgData.data[idx+2] = 20;
+        }
+        imgData.data[idx+3] = 255;
     }
+    ctx.putImageData(imgData, 0, 0);
 
-    drawMap();
+    mapImage = offscreen;
+    mapImageDirty = false;
+
+    // Update info
+    const res = mapInfo.resolution;
+    document.getElementById('mapInfo').innerHTML =
+        `${(mw*res).toFixed(1)}×${(mh*res).toFixed(1)}m`;
 }
 
 function onGlobalPath(msg) {
     globalPath = msg.poses.map(p => ({x: p.pose.position.x, y: p.pose.position.y}));
-    drawMap();
 }
 
 function onLocalPath(msg) {
     localPath = msg.poses.map(p => ({x: p.pose.position.x, y: p.pose.position.y}));
-    drawMap();
 }
 
 function drawMap() {
     if(!mapCtx || !mapCanvas.width) return;
     const cw = mapCanvas.width, ch = mapCanvas.height;
+    const cx = cw / 2, cy = ch / 2;
 
     // Clear
     mapCtx.fillStyle = '#2c2c2e';
     mapCtx.fillRect(0, 0, cw, ch);
 
-    // Grid lines (every 1m)
-    mapCtx.strokeStyle = '#3a3a3c';
-    mapCtx.lineWidth = 0.5;
-    const gridSize = ppm; // 1 meter
-    const cx = cw / 2, cy = ch / 2;
-
-    // Vertical lines
-    for(let x = cx % gridSize; x < cw; x += gridSize) {
-        mapCtx.beginPath();
-        mapCtx.moveTo(x, 0);
-        mapCtx.lineTo(x, ch);
-        mapCtx.stroke();
-    }
-    // Horizontal lines
-    for(let y = cy % gridSize; y < ch; y += gridSize) {
-        mapCtx.beginPath();
-        mapCtx.moveTo(0, y);
-        mapCtx.lineTo(cw, y);
-        mapCtx.stroke();
-    }
-
-    if(!mapData || !mapInfo) {
-        mapCtx.fillStyle = '#666';
-        mapCtx.font = '14px sans-serif';
-        mapCtx.textAlign = 'center';
-        mapCtx.fillText('Press SLAM to start mapping', cw/2, ch/2);
-        document.getElementById('mapInfo').textContent = 'Map: --';
-        return;
-    }
-
-    const mw = mapInfo.width;
-    const mh = mapInfo.height;
-    const res = mapInfo.resolution;
-    const ox = mapInfo.origin.position.x;
-    const oy = mapInfo.origin.position.y;
-
-    // Update map info display
-    document.getElementById('mapInfo').innerHTML =
-        `${(mw*res).toFixed(1)}m × ${(mh*res).toFixed(1)}m<br>` +
-        `${ppm.toFixed(0)} px/m`;
-
     // World to canvas helper
     function w2c(wx, wy) {
-        const dx = wx - robotPose.x;
-        const dy = wy - robotPose.y;
         return {
-            x: cx + dx * ppm,
-            y: cy - dy * ppm
+            x: cx + (wx - robotPose.x) * PPM,
+            y: cy - (wy - robotPose.y) * PPM
         };
     }
 
-    // Draw occupancy grid cell by cell
-    const cellSize = res * ppm;
-    if(cellSize >= 1) {
-        for(let i = 0; i < mapData.length; i++) {
-            const v = mapData[i];
-            const gx = i % mw;
-            const gy = Math.floor(i / mw);
+    // Draw cached map image
+    if(mapImage && mapInfo) {
+        const res = mapInfo.resolution;
+        const ox = mapInfo.origin.position.x;
+        const oy = mapInfo.origin.position.y;
+        const mw = mapInfo.width;
+        const mh = mapInfo.height;
 
-            // Grid to world
-            const wx = ox + (gx + 0.5) * res;
-            const wy = oy + (gy + 0.5) * res;
+        // Scale: pixels per cell
+        const scale = res * PPM;
 
-            // World to canvas
-            const p = w2c(wx, wy);
+        // Map origin in canvas coords
+        const mapOrigin = w2c(ox, oy + mh * res);
 
-            // Skip if outside canvas
-            if(p.x < -cellSize || p.x > cw + cellSize || p.y < -cellSize || p.y > ch + cellSize) continue;
-
-            // Color
-            if(v === -1) {
-                mapCtx.fillStyle = '#3c3c3e';
-            } else if(v === 0) {
-                mapCtx.fillStyle = '#e0e0e0';
-            } else {
-                mapCtx.fillStyle = '#1a1a1a';
-            }
-
-            mapCtx.fillRect(p.x - cellSize/2, p.y - cellSize/2, cellSize, cellSize);
-        }
+        mapCtx.save();
+        mapCtx.translate(mapOrigin.x, mapOrigin.y);
+        mapCtx.scale(scale, scale);
+        mapCtx.drawImage(mapImage, 0, 0);
+        mapCtx.restore();
     }
 
     // Draw global path (blue)
     if(globalPath.length > 1) {
         mapCtx.strokeStyle = '#007aff';
         mapCtx.lineWidth = 3;
-        mapCtx.setLineDash([]);
         mapCtx.beginPath();
         let p0 = w2c(globalPath[0].x, globalPath[0].y);
         mapCtx.moveTo(p0.x, p0.y);
@@ -546,11 +466,11 @@ function drawMap() {
         mapCtx.stroke();
     }
 
-    // Draw local path (green dashed)
+    // Draw local path (green)
     if(localPath.length > 1) {
         mapCtx.strokeStyle = '#34c759';
         mapCtx.lineWidth = 2;
-        mapCtx.setLineDash([5, 5]);
+        mapCtx.setLineDash([4, 4]);
         mapCtx.beginPath();
         let p0 = w2c(localPath[0].x, localPath[0].y);
         mapCtx.moveTo(p0.x, p0.y);
@@ -567,66 +487,32 @@ function drawMap() {
         const ip = w2c(initPose.x, initPose.y);
         mapCtx.fillStyle = '#ff9500';
         mapCtx.beginPath();
-        mapCtx.arc(ip.x, ip.y, 8, 0, Math.PI*2);
+        mapCtx.arc(ip.x, ip.y, 6, 0, Math.PI*2);
         mapCtx.fill();
-        // Direction
-        mapCtx.strokeStyle = '#ff9500';
-        mapCtx.lineWidth = 3;
-        mapCtx.beginPath();
-        mapCtx.moveTo(ip.x, ip.y);
-        mapCtx.lineTo(ip.x + Math.cos(-initPose.theta) * 20, ip.y + Math.sin(-initPose.theta) * 20);
-        mapCtx.stroke();
     }
 
-    // Draw goal (red)
+    // Draw goal (red target)
     if(goalPose) {
         const g = w2c(goalPose.x, goalPose.y);
         mapCtx.fillStyle = '#ff3b30';
         mapCtx.beginPath();
-        mapCtx.arc(g.x, g.y, 10, 0, Math.PI*2);
+        mapCtx.arc(g.x, g.y, 8, 0, Math.PI*2);
         mapCtx.fill();
         mapCtx.fillStyle = '#fff';
         mapCtx.beginPath();
-        mapCtx.arc(g.x, g.y, 4, 0, Math.PI*2);
+        mapCtx.arc(g.x, g.y, 3, 0, Math.PI*2);
         mapCtx.fill();
-        // Direction arrow
-        mapCtx.strokeStyle = '#ff3b30';
-        mapCtx.lineWidth = 3;
-        mapCtx.beginPath();
-        mapCtx.moveTo(g.x, g.y);
-        mapCtx.lineTo(g.x + Math.cos(-goalPose.theta) * 25, g.y + Math.sin(-goalPose.theta) * 25);
-        mapCtx.stroke();
     }
 
-    // Draw drag preview
-    if(dragStart && mapMode !== 'none') {
-        const ds = w2c(dragStart.x, dragStart.y);
-        mapCtx.fillStyle = mapMode === 'pose' ? 'rgba(255,149,0,0.5)' : 'rgba(255,59,48,0.5)';
-        mapCtx.beginPath();
-        mapCtx.arc(ds.x, ds.y, 10, 0, Math.PI*2);
-        mapCtx.fill();
-
-        if(dragEnd) {
-            const theta = Math.atan2(dragEnd.y - dragStart.y, dragEnd.x - dragStart.x);
-            mapCtx.strokeStyle = mapMode === 'pose' ? '#ff9500' : '#ff3b30';
-            mapCtx.lineWidth = 3;
-            mapCtx.beginPath();
-            mapCtx.moveTo(ds.x, ds.y);
-            mapCtx.lineTo(ds.x + Math.cos(-theta) * 30, ds.y + Math.sin(-theta) * 30);
-            mapCtx.stroke();
-        }
-    }
-
-    // Draw robot (blue triangle)
-    const r = w2c(robotPose.x, robotPose.y);
+    // Draw robot (blue triangle at center)
     mapCtx.save();
-    mapCtx.translate(r.x, r.y);
+    mapCtx.translate(cx, cy);
     mapCtx.rotate(-robotPose.theta);
     mapCtx.fillStyle = '#007aff';
     mapCtx.beginPath();
-    mapCtx.moveTo(15, 0);
-    mapCtx.lineTo(-8, -10);
-    mapCtx.lineTo(-8, 10);
+    mapCtx.moveTo(12, 0);
+    mapCtx.lineTo(-6, -8);
+    mapCtx.lineTo(-6, 8);
     mapCtx.closePath();
     mapCtx.fill();
     mapCtx.strokeStyle = '#fff';
@@ -646,7 +532,7 @@ function onScan(m) {
             pts.push({x: r*Math.cos(a-Math.PI/2), y: r*Math.sin(a-Math.PI/2), d: r});
         }
     }
-    if(Date.now() - ld > 100) { ld = Date.now(); drawLids(); }
+    if(Date.now() - ld > 150) { ld = Date.now(); drawLids(); }
 }
 
 function dc(d) { return d<0.5 ? '#ff3b30' : d<1 ? '#ff9500' : d<2 ? '#ffcc00' : '#34c759'; }
@@ -676,15 +562,11 @@ function onOdom(m) {
 
     robotPose = {x: x, y: y, theta: t};
 
-    const xs = x.toFixed(2);
-    const ys = y.toFixed(2);
-    const ts = Math.round(t * 180/Math.PI);
-
     ['1','2','3'].forEach(i => {
         const ex = document.getElementById('x'+i), ey = document.getElementById('y'+i), et = document.getElementById('t'+i);
-        if(ex) ex.textContent = xs;
-        if(ey) ey.textContent = ys;
-        if(et) et.textContent = ts + '°';
+        if(ex) ex.textContent = x.toFixed(2);
+        if(ey) ey.textContent = y.toFixed(2);
+        if(et) et.textContent = Math.round(t * 180/Math.PI) + '°';
     });
 }
 
@@ -717,13 +599,6 @@ function drawBoxes() {
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
         ctx.strokeRect(sx, sy, sw, sh);
-        const label = `${b.class} ${(b.confidence*100).toFixed(0)}%`;
-        ctx.font = '12px sans-serif';
-        const tw = ctx.measureText(label).width;
-        ctx.fillStyle = color;
-        ctx.fillRect(sx, sy - 16, tw + 6, 16);
-        ctx.fillStyle = '#000';
-        ctx.fillText(label, sx + 3, sy - 4);
     });
 }
 
@@ -782,10 +657,8 @@ document.onkeyup = e => {
     if('wasdWASD'.includes(e.key)) { keys[e.key] = false; updateFromKeys(); }
 };
 
-// Periodic map redraw
-setInterval(() => {
-    if(mapData && mapInfo) drawMap();
-}, 200);
+// Map redraw at lower frequency
+setInterval(drawMap, 500);
 
 setCam();
 connect();
