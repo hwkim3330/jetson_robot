@@ -7,6 +7,12 @@ amcl:
     alpha4: 0.2
     alpha5: 0.2
     base_frame_id: "base_link"
+    set_initial_pose: true
+    initial_pose:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+      yaw: 0.0
     beam_skip_distance: 0.5
     beam_skip_error_threshold: 0.9
     beam_skip_threshold: 0.3

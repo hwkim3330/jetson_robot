@@ -225,7 +225,7 @@ document.getElementById('bNav').onclick = function() {
     document.getElementById('mstat').textContent = nav ? 'Nav Active - Tap goal' : 'Ready';
     if(modePub) modePub.publish(new ROSLIB.Message({data: nav ? 'nav' : 'manual'}));
 
-    // Auto-publish initial pose when Nav starts
+    // Auto-publish initial pose when Nav starts (after Nav2 fully initializes)
     if(nav && initPosePub) {
         setTimeout(() => {
             const q = {x:0, y:0, z:Math.sin(robotPose.theta/2), w:Math.cos(robotPose.theta/2)};
@@ -237,7 +237,8 @@ document.getElementById('bNav').onclick = function() {
                 }
             }));
             initPose = {x: robotPose.x, y: robotPose.y, theta: robotPose.theta};
-        }, 1000); // Wait for Nav2 to initialize
+            document.getElementById('mstat').textContent = 'Nav Ready - Tap Goal';
+        }, 5000); // Wait 5s for Nav2 to fully initialize
     }
 
     mapMode = 'none';
@@ -379,25 +380,29 @@ function updateMapImage() {
     offscreen.height = mh;
     const ctx = offscreen.getContext('2d');
 
-    // Draw map using ImageData (fast!)
+    // Draw map using ImageData (fast!) - flip Y axis for ROS→Canvas
     const imgData = ctx.createImageData(mw, mh);
     for(let i = 0; i < mapData.length; i++) {
+        const gx = i % mw;
+        const gy = Math.floor(i / mw);
+        const flippedY = mh - 1 - gy;  // Flip Y: ROS bottom-up → Canvas top-down
+        const dstIdx = (flippedY * mw + gx) * 4;
+
         const v = mapData[i];
-        const idx = i * 4;
         if(v === -1) { // Unknown
-            imgData.data[idx] = 50;
-            imgData.data[idx+1] = 50;
-            imgData.data[idx+2] = 52;
+            imgData.data[dstIdx] = 50;
+            imgData.data[dstIdx+1] = 50;
+            imgData.data[dstIdx+2] = 52;
         } else if(v === 0) { // Free
-            imgData.data[idx] = 220;
-            imgData.data[idx+1] = 220;
-            imgData.data[idx+2] = 220;
+            imgData.data[dstIdx] = 220;
+            imgData.data[dstIdx+1] = 220;
+            imgData.data[dstIdx+2] = 220;
         } else { // Occupied
-            imgData.data[idx] = 20;
-            imgData.data[idx+1] = 20;
-            imgData.data[idx+2] = 20;
+            imgData.data[dstIdx] = 20;
+            imgData.data[dstIdx+1] = 20;
+            imgData.data[dstIdx+2] = 20;
         }
-        imgData.data[idx+3] = 255;
+        imgData.data[dstIdx+3] = 255;
     }
     ctx.putImageData(imgData, 0, 0);
 
