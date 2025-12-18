@@ -38,43 +38,43 @@
         .camera-wrap img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
 
         /* Map */
-        .map-wrap { flex: 1; background: #1c1c1e; position: relative; min-height: 150px; }
-        .map-wrap > div { width: 100%; height: 100%; }
-        .map-btns { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; z-index: 5; }
-        .mbtn { padding: 6px 12px; background: rgba(255,255,255,0.9); border: none; border-radius: 8px; font-size: 11px; font-weight: 600; }
+        .map-wrap { flex: 1; background: #1c1c1e; position: relative; min-height: 150px; overflow: hidden; }
+        #mapDiv { width: 100%; height: 100%; }
+        .map-btns { position: absolute; top: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; z-index: 10; }
+        .mbtn { padding: 8px 14px; background: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; color: #1c1c1e; box-shadow: 0 2px 8px rgba(0,0,0,0.2); cursor: pointer; }
+        .mbtn:active { transform: scale(0.95); }
         .mbtn.on { background: #007aff; color: #fff; }
         .mbtn.red { background: #ff3b30; color: #fff; }
-        .mstat { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px; font-size: 10px; color: #fff; }
+        .mstat { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 6px 10px; border-radius: 6px; font-size: 11px; color: #fff; font-weight: 500; }
 
-        /* Control Row */
-        .ctrl-row { display: flex; height: 200px; background: #fff; border-top: 1px solid #d1d1d6; flex-shrink: 0; }
+        /* Control Row - LiDAR and Joystick only */
+        .ctrl-row { display: flex; flex: 1; background: #fff; border-top: 1px solid #d1d1d6; min-height: 180px; }
 
         /* LiDAR */
-        .lidar-box { width: 200px; height: 200px; background: #000; flex-shrink: 0; position: relative; }
+        .lidar-box { flex: 1; background: #000; position: relative; }
         .lidar-box canvas { display: block; width: 100%; height: 100%; }
 
-        /* Center info */
-        .info-box { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; padding: 8px; }
-        .odom-row { display: flex; gap: 16px; }
-        .odom-item { text-align: center; }
-        .oval { font-size: 18px; font-weight: 700; color: #1c1c1e; }
-        .olbl { font-size: 9px; color: #8e8e93; }
-
         /* Joystick */
-        .joy-box { width: 200px; height: 200px; background: #f2f2f7; flex-shrink: 0; position: relative; }
+        .joy-box { flex: 1; background: #f2f2f7; position: relative; }
         .joy-zone { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 160px; height: 160px; background: radial-gradient(circle, #fff 0%, #e5e5ea 100%); border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
 
-        /* Speed bar at bottom */
-        .speed-bar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: #fff; border-top: 1px solid #e5e5ea; flex-shrink: 0; }
-        .speed-bar label { font-size: 12px; font-weight: 600; color: #8e8e93; }
-        .speed-bar input { flex: 1; height: 6px; -webkit-appearance: none; background: #e5e5ea; border-radius: 3px; }
-        .speed-bar input::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; background: #007aff; border-radius: 50%; }
-        .speed-bar span { font-size: 13px; font-weight: 700; color: #007aff; min-width: 40px; text-align: right; }
+        /* Bottom bar - odom + speed */
+        .bottom-bar { display: flex; align-items: center; padding: 6px 12px; background: #fff; border-top: 1px solid #e5e5ea; flex-shrink: 0; gap: 12px; }
+        .odom-group { display: flex; gap: 8px; }
+        .odom-item { display: flex; align-items: center; gap: 2px; }
+        .olbl { font-size: 10px; color: #8e8e93; font-weight: 600; }
+        .oval { font-size: 13px; font-weight: 700; color: #1c1c1e; min-width: 45px; }
+        .speed-group { flex: 1; display: flex; align-items: center; gap: 8px; }
+        .speed-group label { font-size: 10px; font-weight: 600; color: #8e8e93; }
+        .speed-group input { flex: 1; height: 4px; -webkit-appearance: none; background: #e5e5ea; border-radius: 2px; }
+        .speed-group input::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: #007aff; border-radius: 50%; }
+        .speed-group span { font-size: 12px; font-weight: 700; color: #007aff; min-width: 36px; text-align: right; }
 
         /* AI overlay */
-        .ai-btn { position: absolute; top: 8px; right: 8px; padding: 8px 16px; background: rgba(255,255,255,0.9); border: none; border-radius: 8px; font-size: 12px; font-weight: 600; z-index: 5; }
+        .ai-btn { position: absolute; top: 8px; right: 8px; padding: 8px 16px; background: rgba(255,255,255,0.9); border: none; border-radius: 8px; font-size: 12px; font-weight: 600; z-index: 5; cursor: pointer; }
+        .ai-btn:active { transform: scale(0.95); }
         .ai-btn.on { background: #34c759; color: #fff; }
-        .log-box { position: absolute; bottom: 8px; left: 8px; right: 8px; background: rgba(0,0,0,0.75); border-radius: 8px; padding: 8px; max-height: 60px; overflow: hidden; font-family: monospace; font-size: 10px; color: #34c759; }
+        .log-bar { background: #1c1c1e; color: #34c759; font-family: monospace; font-size: 11px; padding: 6px 12px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
 </head>
 <body>
@@ -95,19 +95,19 @@
             <div class="camera-wrap"><img id="cam1" src="" alt=""></div>
             <div class="ctrl-row">
                 <div class="lidar-box"><canvas id="lid1"></canvas></div>
-                <div class="info-box">
-                    <div class="odom-row">
-                        <div class="odom-item"><div class="oval" id="x1">0.00</div><div class="olbl">X (m)</div></div>
-                        <div class="odom-item"><div class="oval" id="y1">0.00</div><div class="olbl">Y (m)</div></div>
-                        <div class="odom-item"><div class="oval" id="t1">0</div><div class="olbl">θ (°)</div></div>
-                    </div>
-                </div>
                 <div class="joy-box"><div class="joy-zone" id="jz1"></div></div>
             </div>
-            <div class="speed-bar">
-                <label>Speed</label>
-                <input type="range" id="spd" min="10" max="150" value="50">
-                <span id="spdv">50%</span>
+            <div class="bottom-bar">
+                <div class="odom-group">
+                    <div class="odom-item"><span class="olbl">X</span><span class="oval" id="x1">0.00</span></div>
+                    <div class="odom-item"><span class="olbl">Y</span><span class="oval" id="y1">0.00</span></div>
+                    <div class="odom-item"><span class="olbl">θ</span><span class="oval" id="t1">0°</span></div>
+                </div>
+                <div class="speed-group">
+                    <label>Speed</label>
+                    <input type="range" id="spd" min="10" max="150" value="50">
+                    <span id="spdv">50%</span>
+                </div>
             </div>
         </div>
 
@@ -126,14 +126,19 @@
             </div>
             <div class="ctrl-row">
                 <div class="lidar-box"><canvas id="lid2"></canvas></div>
-                <div class="info-box">
-                    <div class="odom-row">
-                        <div class="odom-item"><div class="oval" id="x2">0.00</div><div class="olbl">X (m)</div></div>
-                        <div class="odom-item"><div class="oval" id="y2">0.00</div><div class="olbl">Y (m)</div></div>
-                        <div class="odom-item"><div class="oval" id="t2">0</div><div class="olbl">θ (°)</div></div>
-                    </div>
-                </div>
                 <div class="joy-box"><div class="joy-zone" id="jz2"></div></div>
+            </div>
+            <div class="bottom-bar">
+                <div class="odom-group">
+                    <div class="odom-item"><span class="olbl">X</span><span class="oval" id="x2">0.00</span></div>
+                    <div class="odom-item"><span class="olbl">Y</span><span class="oval" id="y2">0.00</span></div>
+                    <div class="odom-item"><span class="olbl">θ</span><span class="oval" id="t2">0°</span></div>
+                </div>
+                <div class="speed-group">
+                    <label>Speed</label>
+                    <input type="range" id="spd2" min="10" max="150" value="50">
+                    <span id="spdv2">50%</span>
+                </div>
             </div>
         </div>
 
@@ -142,18 +147,23 @@
             <div class="camera-wrap">
                 <img id="cam2" src="" alt="">
                 <button class="ai-btn" id="yoloB">YOLO</button>
-                <div class="log-box" id="logB">Waiting...</div>
             </div>
             <div class="ctrl-row">
                 <div class="lidar-box"><canvas id="lid3"></canvas></div>
-                <div class="info-box">
-                    <div class="odom-row">
-                        <div class="odom-item"><div class="oval" id="x3">0.00</div><div class="olbl">X (m)</div></div>
-                        <div class="odom-item"><div class="oval" id="y3">0.00</div><div class="olbl">Y (m)</div></div>
-                        <div class="odom-item"><div class="oval" id="t3">0</div><div class="olbl">θ (°)</div></div>
-                    </div>
-                </div>
                 <div class="joy-box"><div class="joy-zone" id="jz3"></div></div>
+            </div>
+            <div class="log-bar" id="logB">AI Detection Log</div>
+            <div class="bottom-bar">
+                <div class="odom-group">
+                    <div class="odom-item"><span class="olbl">X</span><span class="oval" id="x3">0.00</span></div>
+                    <div class="odom-item"><span class="olbl">Y</span><span class="oval" id="y3">0.00</span></div>
+                    <div class="odom-item"><span class="olbl">θ</span><span class="oval" id="t3">0°</span></div>
+                </div>
+                <div class="speed-group">
+                    <label>Speed</label>
+                    <input type="range" id="spd3" min="10" max="150" value="50">
+                    <span id="spdv3">50%</span>
+                </div>
             </div>
         </div>
     </div>
@@ -190,11 +200,15 @@ document.querySelectorAll('.tab').forEach(t => {
     };
 });
 
-// Speed
-document.getElementById('spd').oninput = e => {
-    spd = e.target.value/100;
-    document.getElementById('spdv').textContent = e.target.value+'%';
-};
+// Speed - sync all sliders
+['spd','spd2','spd3'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.oninput = e => {
+        spd = e.target.value/100;
+        ['spd','spd2','spd3'].forEach(sid => { const s=document.getElementById(sid); if(s) s.value=e.target.value; });
+        ['spdv','spdv2','spdv3'].forEach(vid => { const v=document.getElementById(vid); if(v) v.textContent=e.target.value+'%'; });
+    };
+});
 
 // YOLO
 document.getElementById('yoloB').onclick = function() {
@@ -268,7 +282,7 @@ function onOdom(m) {
     const q=m.pose.pose.orientation, t=Math.round(Math.atan2(2*(q.w*q.z),1-2*q.z*q.z)*180/Math.PI);
     ['1','2','3'].forEach(i => {
         const ex=document.getElementById('x'+i), ey=document.getElementById('y'+i), et=document.getElementById('t'+i);
-        if(ex) ex.textContent=x; if(ey) ey.textContent=y; if(et) et.textContent=t;
+        if(ex) ex.textContent=x; if(ey) ey.textContent=y; if(et) et.textContent=t+'°';
     });
 }
 
@@ -281,7 +295,7 @@ function onDet(m) {
     } catch(e){}
 }
 
-// Joysticks - fixed positioning
+// Joysticks
 let joys = {};
 function mkJoy(id) {
     const z = document.getElementById(id);
@@ -290,8 +304,8 @@ function mkJoy(id) {
         zone: z,
         mode: 'static',
         position: {left:'50%', top:'50%'},
-        color: 'gray',
-        size: 130
+        color: '#8e8e93',
+        size: 120
     }).on('move', (e,d) => {
         const f=Math.min(d.force,2)/2, a=d.angle.radian;
         send(Math.sin(a)*f*ML*spd*2, -Math.cos(a)*f*MA*spd*2);
