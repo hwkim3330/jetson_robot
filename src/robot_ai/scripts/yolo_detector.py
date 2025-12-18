@@ -2,17 +2,16 @@
 """
 YOLOv8 TensorRT Detector Node for KETI Robot
 Uses TensorRT engine for optimal Jetson performance
-Supports DLA (Deep Learning Accelerator) when available
 
 Topics:
-    Subscribes: /camera/image_raw
+    Subscribes: /camera/image_raw/compressed (CompressedImage)
     Publishes: /detections, /person_target, /yolo/debug
 """
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CompressedImage
 from geometry_msgs.msg import Point
 from std_msgs.msg import Bool, Float32, String
 from cv_bridge import CvBridge
@@ -68,9 +67,9 @@ class YoloDetector(Node):
         # QoS
         qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
 
-        # Subscribers
+        # Subscribers (CompressedImage for nvjpegenc camera)
         self.image_sub = self.create_subscription(
-            Image, '/camera/image_raw', self.image_callback, qos)
+            CompressedImage, '/camera/image_raw/compressed', self.image_callback, qos)
 
         # Publishers
         self.person_pub = self.create_publisher(Point, '/person_target', 10)
@@ -128,9 +127,11 @@ class YoloDetector(Node):
             self.get_logger().error(f'Failed to load any model: {e}')
 
     def image_callback(self, msg):
-        """Handle incoming images"""
+        """Handle incoming compressed images"""
         try:
-            self.last_frame = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
+            # Decompress JPEG
+            np_arr = np.frombuffer(msg.data, np.uint8)
+            self.last_frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         except Exception as e:
             self.get_logger().error(f'Image conversion error: {e}')
 
