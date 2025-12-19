@@ -634,7 +634,7 @@ function drawMap() {
     // Draw robot (blue triangle at center, arrow points forward)
     mapCtx.save();
     mapCtx.translate(cx, cy);
-    mapCtx.rotate(-robotPose.theta + Math.PI);
+    mapCtx.rotate(-robotPose.theta);
     mapCtx.fillStyle = '#007aff';
     mapCtx.beginPath();
     mapCtx.moveTo(12, 0);
@@ -947,17 +947,35 @@ function findNearestFrontier() {
     return nearest;
 }
 
+// Stuck detection
+let lastPos = {x: 0, y: 0};
+let stuckTime = 0;
+let escapeMode = false;
+let escapeStart = 0;
+
 function exploreLoop() {
     if(!autoSlam || !conn) return;
 
     const now = Date.now();
+
+    // Stuck detection - if robot hasn't moved for 3 seconds
+    const moved = Math.sqrt(Math.pow(robotPose.x - lastPos.x, 2) + Math.pow(robotPose.y - lastPos.y, 2));
+    if(moved > 0.1) {
+        lastPos = {x: robotPose.x, y: robotPose.y};
+        stuckTime = now;
+        escapeMode = false;
+    } else if(now - stuckTime > 3000 && !escapeMode) {
+        escapeMode = true;
+        escapeStart = now;
+        document.getElementById('mstat').textContent = 'Stuck! Escaping...';
+    }
 
     // Find new frontier every 3 seconds or when reached goal
     const needNewGoal = !frontierGoal ||
         (now - lastFrontierSearch > 3000) ||
         (frontierGoal && Math.sqrt(Math.pow(frontierGoal.x - robotPose.x, 2) + Math.pow(frontierGoal.y - robotPose.y, 2)) < 0.3);
 
-    if(needNewGoal) {
+    if(needNewGoal && !escapeMode) {
         lastFrontierSearch = now;
         const newFrontier = findNearestFrontier();
         if(newFrontier) {
@@ -975,10 +993,42 @@ function exploreLoop() {
     const frontRight = getMinDist(-60, -30); // Front-right
     const left = getMinDist(60, 120);       // Left side
     const right = getMinDist(-120, -60);    // Right side
+    const back = getMinDist(150, 180) < getMinDist(-180, -150) ? getMinDist(150, 180) : getMinDist(-180, -150);
 
     let lin = 0, ang = 0;
-    const STOP_DIST = 0.35;   // Emergency stop distance
-    const SLOW_DIST = 0.5;    // Slow down distance
+    const STOP_DIST = 0.25;   // Emergency stop distance
+    const SLOW_DIST = 0.35;   // Slow down distance
+
+    // Escape mode - back up and turn around
+    if(escapeMode) {
+        const escapeElapsed = now - escapeStart;
+        if(escapeElapsed < 1500) {
+            // Back up for 1.5 seconds
+            lin = back > 0.2 ? -0.15 : 0;
+            ang = 0;
+        } else if(escapeElapsed < 3000) {
+            // Turn around for 1.5 seconds
+            lin = 0;
+            ang = 0.8;
+        } else {
+            // Done escaping
+            escapeMode = false;
+            stuckTime = now;
+            frontierGoal = null;  // Find new goal
+        }
+        send(lin, ang);
+        return;
+    }
+
+    // Dead end detection - all sides blocked
+    const deadEnd = front < SLOW_DIST && frontLeft < SLOW_DIST && frontRight < SLOW_DIST;
+    if(deadEnd) {
+        // Back up and turn
+        lin = back > 0.2 ? -0.12 : 0;
+        ang = left > right ? 0.7 : -0.7;
+        send(lin, ang);
+        return;
+    }
 
     if(frontierGoal) {
         const dx = frontierGoal.x - robotPose.x;
@@ -989,8 +1039,8 @@ function exploreLoop() {
         while(angleDiff < -Math.PI) angleDiff += 2*Math.PI;
 
         if(front < STOP_DIST) {
-            // Emergency: obstacle too close - rotate away
-            lin = -0.05;  // Back up slightly
+            // Emergency: obstacle too close - back up and rotate
+            lin = back > 0.2 ? -0.1 : 0;
             ang = left > right ? 0.8 : -0.8;
         } else if(front < SLOW_DIST || frontLeft < STOP_DIST || frontRight < STOP_DIST) {
             // Obstacle nearby - turn to avoid
