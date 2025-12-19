@@ -648,7 +648,7 @@ function drawMap() {
     mapCtx.restore();
 }
 
-// LiDAR - ROS standard: x=forward, y=left (LD19 scans clockwise, so negate y)
+// LiDAR display: up=forward, left=left (ROS standard counterclockwise)
 let ld = 0;
 let scanRanges = [];  // Raw scan for algorithms
 function onScan(m) {
@@ -658,11 +658,11 @@ function onScan(m) {
         const r = m.ranges[i];
         if(r > m.range_min && r < Math.min(m.range_max, 5)) {
             const a = m.angle_min + i * m.angle_increment;
-            // LD19: x=forward, y=right (clockwise scan), flip y for ROS standard
-            const x = r * Math.cos(a);
-            const y = -r * Math.sin(a);  // Negate for clockwise lidar
-            // For display: rotate 90deg (up=forward)
-            pts.push({x: y, y: -x, d: r, rx: x, ry: y});
+            // ROS standard: angle=0 is forward (+x), angle=PI/2 is left (+y)
+            const lx = r * Math.cos(a);  // lidar x (forward)
+            const ly = r * Math.sin(a);  // lidar y (left)
+            // Display: screen_x = -lidar_y (left=left), screen_y = -lidar_x (forward=up)
+            pts.push({x: -ly, y: -lx, d: r, rx: lx, ry: ly});
         }
     }
     if(Date.now() - ld > 150) { ld = Date.now(); drawLids(); }
