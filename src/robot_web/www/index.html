@@ -35,34 +35,50 @@
         .camera-wrap img { object-fit: contain; }
         .camera-wrap canvas { pointer-events: none; }
 
-        .map-wrap { flex: 1; background: #1c1c1e; position: relative; min-height: 200px; overflow: hidden; }
-        #mapCanvas { width: 100%; height: 100%; display: block; background: #2c2c2e; touch-action: none; }
-        .map-btns { position: absolute; top: 8px; left: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 10; }
-        .map-btns-right { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 4px; z-index: 10; }
-        .mbtn { padding: 6px 12px; background: #fff; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; color: #1c1c1e; box-shadow: 0 2px 6px rgba(0,0,0,0.3); cursor: pointer; }
-        .mbtn:active { transform: scale(0.95); }
-        .mbtn.on { background: #007aff; color: #fff; }
-        .mbtn.red { background: #ff3b30; color: #fff; }
-        .mbtn.green { background: #34c759; color: #fff; }
-        .mbtn.orange { background: #ff9500; color: #fff; }
-        .btn-group { display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.4); padding: 4px 6px; border-radius: 8px; }
-        .grp-label { font-size: 9px; font-weight: 700; color: #8e8e93; text-transform: uppercase; margin-right: 2px; }
-        .map-slots { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #fff; border-top: 1px solid #e5e5ea; }
-        .slot-label { font-size: 11px; font-weight: 600; color: #8e8e93; }
-        .slot-btn { width: 28px; height: 28px; border: 2px solid #d1d1d6; background: #fff; border-radius: 6px; font-size: 12px; font-weight: 700; color: #3a3a3c; cursor: pointer; }
+        /* Map Page */
+        .map-wrap { flex: 1; background: #111; position: relative; min-height: 200px; overflow: hidden; }
+        #mapCanvas { width: 100%; height: 100%; display: block; background: #111; touch-action: none; }
+
+        /* Left control panel */
+        .map-ctrl-left { position: absolute; top: 12px; left: 12px; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
+        .ctrl-group { display: flex; flex-direction: column; gap: 4px; background: rgba(30,30,30,0.95); padding: 10px; border-radius: 12px; border: 1px solid #333; }
+        .ctrl-group-label { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .ctrl-group-btns { display: flex; gap: 6px; }
+        .mbtn { padding: 10px 16px; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; font-size: 13px; font-weight: 600; color: #fff; cursor: pointer; transition: all 0.15s; min-width: 60px; }
+        .mbtn:hover { background: #3a3a3a; }
+        .mbtn:active { transform: scale(0.96); }
+        .mbtn.on { background: #0a84ff; border-color: #0a84ff; }
+        .mbtn.red { background: #ff453a; border-color: #ff453a; }
+        .mbtn.green { background: #30d158; border-color: #30d158; }
+        .mbtn.orange { background: #ff9f0a; border-color: #ff9f0a; color: #000; }
+
+        /* Map slot buttons - bottom bar */
+        .map-slots { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; background: #1a1a1a; border-top: 1px solid #333; }
+        .slot-btn { width: 36px; height: 36px; border: 2px solid #333; background: #222; border-radius: 8px; font-size: 14px; font-weight: 700; color: #666; cursor: pointer; transition: all 0.15s; }
         .slot-btn:active { transform: scale(0.95); }
-        .slot-btn.has-map { border-color: #007aff; background: #e3f2fd; color: #007aff; }
-        .slot-btn.active { border-color: #34c759; background: #34c759; color: #fff; }
-        .mstat { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.8); padding: 6px 10px; border-radius: 6px; font-size: 10px; color: #fff; font-weight: 500; }
-        .map-info { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); padding: 6px 10px; border-radius: 6px; font-size: 10px; color: #8e8e93; text-align: right; line-height: 1.4; }
+        .slot-btn.has-map { border-color: #0a84ff; background: rgba(10,132,255,0.15); color: #0a84ff; }
+        .slot-btn.active { border-color: #30d158; background: #30d158; color: #fff; }
+
+        /* Status overlays */
+        .mstat { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,0.9); padding: 8px 14px; border-radius: 8px; font-size: 12px; color: #30d158; font-weight: 600; border: 1px solid #333; }
+        .map-info { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,0.9); padding: 8px 14px; border-radius: 8px; font-size: 11px; color: #888; text-align: right; line-height: 1.5; border: 1px solid #333; }
+
+        /* Action buttons - top right */
+        .map-actions { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 10; }
 
         .ctrl-row { display: flex; flex: 1; background: #fff; border-top: 1px solid #d1d1d6; min-height: 160px; }
+        .ctrl-row.dark { background: #1a1a1a; border-color: #333; }
         .lidar-box { flex: 1; background: #000; position: relative; }
         .lidar-box canvas { display: block; width: 100%; height: 100%; }
         .joy-box { flex: 1; background: #f2f2f7; position: relative; }
+        .joy-box.dark { background: #1a1a1a; }
         .joy-zone { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 140px; height: 140px; background: radial-gradient(circle, #fff 0%, #e5e5ea 100%); border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        .joy-zone.dark { background: radial-gradient(circle, #333 0%, #222 100%); box-shadow: inset 0 2px 8px rgba(0,0,0,0.5); }
 
         .bottom-bar { display: flex; align-items: center; justify-content: center; padding: 6px 12px; background: #fff; border-top: 1px solid #e5e5ea; flex-shrink: 0; gap: 16px; }
+        .bottom-bar.dark { background: #111; border-color: #333; }
+        .bottom-bar.dark .olbl { color: #666; }
+        .bottom-bar.dark .oval { color: #0a84ff; }
         .odom-item { display: flex; align-items: center; gap: 4px; }
         .olbl { font-size: 10px; color: #8e8e93; font-weight: 600; }
         .oval { font-size: 13px; font-weight: 700; color: #1c1c1e; min-width: 45px; }
@@ -88,11 +104,11 @@
     <div class="content">
         <div class="page active" id="page-control">
             <div class="camera-wrap"><img id="cam1" src="" alt=""></div>
-            <div class="ctrl-row">
+            <div class="ctrl-row dark">
                 <div class="lidar-box"><canvas id="lid1"></canvas></div>
-                <div class="joy-box"><div class="joy-zone" id="jz1"></div></div>
+                <div class="joy-box dark"><div class="joy-zone dark" id="jz1"></div></div>
             </div>
-            <div class="bottom-bar">
+            <div class="bottom-bar dark">
                 <div class="odom-item"><span class="olbl">X</span><span class="oval" id="x1">0.00</span></div>
                 <div class="odom-item"><span class="olbl">Y</span><span class="oval" id="y1">0.00</span></div>
                 <div class="odom-item"><span class="olbl">θ</span><span class="oval" id="t1">0°</span></div>
@@ -102,30 +118,37 @@
         <div class="page" id="page-map">
             <div class="map-wrap">
                 <canvas id="mapCanvas"></canvas>
-                <div class="map-btns">
-                    <div class="btn-group"><span class="grp-label">ROS</span>
-                        <button class="mbtn" id="bSlam">SLAM</button>
-                        <button class="mbtn" id="bNav">Nav</button>
+                <!-- Left controls -->
+                <div class="map-ctrl-left">
+                    <div class="ctrl-group">
+                        <span class="ctrl-group-label">ROS</span>
+                        <div class="ctrl-group-btns">
+                            <button class="mbtn" id="bSlam">SLAM</button>
+                            <button class="mbtn" id="bNav">Nav</button>
+                        </div>
                     </div>
-                    <div class="btn-group"><span class="grp-label">JS</span>
-                        <button class="mbtn orange" id="bAutoSlam">Auto</button>
-                        <button class="mbtn" id="bGo">Go</button>
+                    <div class="ctrl-group">
+                        <span class="ctrl-group-label">JS Nav</span>
+                        <div class="ctrl-group-btns">
+                            <button class="mbtn orange" id="bAutoSlam">Auto</button>
+                            <button class="mbtn" id="bGo">Go</button>
+                        </div>
                     </div>
-                    <button class="mbtn red" id="bStop">Stop</button>
+                    <button class="mbtn red" id="bStop">STOP</button>
                 </div>
-                <div class="map-btns-right">
+                <!-- Right actions -->
+                <div class="map-actions">
                     <button class="mbtn" id="bGoal">Goal</button>
                     <button class="mbtn green" id="bSave">Save</button>
                 </div>
                 <div class="mstat" id="mstat">Ready</div>
                 <div class="map-info" id="mapInfo">Map: --</div>
             </div>
-            <div class="ctrl-row">
+            <div class="ctrl-row dark">
                 <div class="lidar-box"><canvas id="lid2"></canvas></div>
-                <div class="joy-box"><div class="joy-zone" id="jz2"></div></div>
+                <div class="joy-box dark"><div class="joy-zone dark" id="jz2"></div></div>
             </div>
             <div class="map-slots">
-                <span class="slot-label">Maps:</span>
                 <button class="slot-btn" data-slot="0">0</button>
                 <button class="slot-btn" data-slot="1">1</button>
                 <button class="slot-btn" data-slot="2">2</button>
@@ -137,7 +160,7 @@
                 <button class="slot-btn" data-slot="8">8</button>
                 <button class="slot-btn" data-slot="9">9</button>
             </div>
-            <div class="bottom-bar">
+            <div class="bottom-bar dark">
                 <div class="odom-item"><span class="olbl">X</span><span class="oval" id="x2">0.00</span></div>
                 <div class="odom-item"><span class="olbl">Y</span><span class="oval" id="y2">0.00</span></div>
                 <div class="odom-item"><span class="olbl">θ</span><span class="oval" id="t2">0°</span></div>
@@ -150,12 +173,12 @@
                 <canvas id="boxCanvas"></canvas>
                 <button class="ai-btn" id="yoloB">YOLO</button>
             </div>
-            <div class="ctrl-row">
+            <div class="ctrl-row dark">
                 <div class="lidar-box"><canvas id="lid3"></canvas></div>
-                <div class="joy-box"><div class="joy-zone" id="jz3"></div></div>
+                <div class="joy-box dark"><div class="joy-zone dark" id="jz3"></div></div>
             </div>
             <div class="log-bar" id="logB">AI Detection Log</div>
-            <div class="bottom-bar">
+            <div class="bottom-bar dark">
                 <div class="odom-item"><span class="olbl">X</span><span class="oval" id="x3">0.00</span></div>
                 <div class="odom-item"><span class="olbl">Y</span><span class="oval" id="y3">0.00</span></div>
                 <div class="odom-item"><span class="olbl">θ</span><span class="oval" id="t3">0°</span></div>
@@ -169,7 +192,7 @@ document.addEventListener('touchmove', e => e.preventDefault(), { passive: false
 
 let ros, cmdVel, aiPub, modePub, goalPub, initPosePub, savePub, conn = false;
 let pts = [], yolo = false, boxes = [];
-const ML = 0.3, MA = 1.5, CAM_W = 640, CAM_H = 360;
+const ML = 0.3, MA = 1.5, CAM_W = 640, CAM_H = 360;  // Max speed
 
 // TF transform from map to odom (for SLAM/Nav correction)
 let mapToOdom = {x: 0, y: 0, theta: 0};
@@ -848,13 +871,13 @@ function initJoys() {
     joys = { j1: mkJoy('jz1'), j2: mkJoy('jz2'), j3: mkJoy('jz3') };
 }
 
-// Velocity control with smoothing to prevent jerky movement
+// Velocity control - 10Hz matches Dynamixel motor update rate
 let tL=0, tA=0;          // Target velocity
 let cL=0, cA=0;          // Current velocity (smoothed)
 let lp=null, keys={};
-const RAMP_RATE = 0.15;  // Velocity change per 50ms (lower = smoother)
+const RAMP_RATE = 0.3;   // Velocity change per 100ms (10Hz)
 
-function send(l, a) { tL = l; tA = a; if(!lp) lp = setInterval(pub, 50); }
+function send(l, a) { tL = l; tA = a; if(!lp) lp = setInterval(pub, 100); }  // 10Hz for motor
 function pub() {
     if(!cmdVel || !conn) return;
 

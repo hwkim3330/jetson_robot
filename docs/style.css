@@ -56,6 +56,11 @@ nav .logo {
     gap: 10px;
 }
 
+nav .logo img {
+    height: 28px;
+    width: auto;
+}
+
 nav .logo span {
     color: var(--nvidia);
 }
