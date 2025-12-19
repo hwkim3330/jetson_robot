@@ -26,6 +26,12 @@ const Nav = (function() {
     let frontierGoal = null;
     let lastFrontierSearch = 0;
 
+    // Stuck detection
+    let stuckCount = 0;
+    let lastPose = {x: 0, y: 0};
+    let recoveryMode = false;
+    let recoveryStart = 0;
+
     /**
      * Find frontier cells (free cells adjacent to unknown)
      * @param {Array} mapData - OccupancyGrid data array
@@ -177,10 +183,47 @@ const Nav = (function() {
      * @param {Array} mapData - Map occupancy data
      * @param {Object} mapInfo - Map info
      * @param {Array} pts - Lidar points
-     * @returns {Object} {lin, ang, goal, complete}
+     * @returns {Object} {lin, ang, goal, complete, recovering}
      */
     function computeExploreCmd(robotPose, mapData, mapInfo, pts) {
         const now = Date.now();
+
+        // Stuck detection - check if robot hasn't moved
+        const moved = Math.sqrt(
+            Math.pow(robotPose.x - lastPose.x, 2) +
+            Math.pow(robotPose.y - lastPose.y, 2)
+        );
+
+        if(moved < 0.02) {
+            stuckCount++;
+        } else {
+            stuckCount = Math.max(0, stuckCount - 2);
+            lastPose = {x: robotPose.x, y: robotPose.y};
+        }
+
+        // Enter recovery mode if stuck for too long (15 iterations = ~1.5s)
+        if(stuckCount > 15 && !recoveryMode) {
+            recoveryMode = true;
+            recoveryStart = now;
+            frontierGoal = null; // Clear current goal
+        }
+
+        // Recovery mode - back up and spin
+        if(recoveryMode) {
+            const elapsed = now - recoveryStart;
+            if(elapsed < 1500) {
+                // Phase 1: Back up
+                return {lin: -0.12, ang: 0, goal: null, complete: false, recovering: true};
+            } else if(elapsed < 3000) {
+                // Phase 2: Spin in place
+                return {lin: 0, ang: 1.0, goal: null, complete: false, recovering: true};
+            } else {
+                // Recovery complete
+                recoveryMode = false;
+                stuckCount = 0;
+                lastFrontierSearch = 0;
+            }
+        }
 
         // Find new frontier every 3 seconds or when reached
         const needNewGoal = !frontierGoal ||
@@ -197,6 +240,14 @@ const Nav = (function() {
         const obs = checkObstacles(pts);
         let lin = 0, ang = 0;
 
+        // Get minimum distances for smarter avoidance
+        let minFront = 10, minLeft = 10, minRight = 10;
+        for(const p of pts) {
+            if(p.rx > 0 && Math.abs(p.ry) < 0.2 && p.d < minFront) minFront = p.d;
+            if(p.rx > -0.1 && p.ry > 0.15 && p.d < minLeft) minLeft = p.d;
+            if(p.rx > -0.1 && p.ry < -0.15 && p.d < minRight) minRight = p.d;
+        }
+
         if(frontierGoal) {
             const dx = frontierGoal.x - robotPose.x;
             const dy = frontierGoal.y - robotPose.y;
@@ -206,29 +257,35 @@ const Nav = (function() {
             while(angleDiff < -Math.PI) angleDiff += 2*Math.PI;
 
             if(!obs.front) {
-                ang = obs.left ? config.angularSpeed : (obs.right ? -config.angularSpeed : config.angularSpeed);
+                // Obstacle ahead - turn toward more open side
+                ang = minLeft > minRight ? config.angularSpeed : -config.angularSpeed;
+                // Slight backup if very close
+                lin = minFront < 0.25 ? -0.08 : 0;
             } else if(Math.abs(angleDiff) > 0.4) {
                 ang = angleDiff > 0 ? 0.6 : -0.6;
                 lin = 0.05;
             } else {
                 lin = config.linearSpeed;
                 ang = angleDiff * 0.8;
-                if(!obs.left) ang -= 0.2;
-                if(!obs.right) ang += 0.2;
+                // Wall following tendency
+                if(!obs.left) ang -= 0.15;
+                if(!obs.right) ang += 0.15;
             }
         } else {
-            // No frontier - random wander or complete
+            // No frontier - wander or complete
             if(!obs.front) {
-                ang = obs.left ? config.angularSpeed : -config.angularSpeed;
+                ang = minLeft > minRight ? config.angularSpeed : -config.angularSpeed;
             } else {
                 lin = 0.12;
+                ang = (minLeft - minRight) * 0.5;  // Steer away from closer wall
             }
         }
 
         return {
             lin, ang,
             goal: frontierGoal,
-            complete: !frontierGoal && findFrontiers(mapData, mapInfo).length === 0
+            complete: !frontierGoal && findFrontiers(mapData, mapInfo).length === 0,
+            recovering: false
         };
     }
 
@@ -344,6 +401,9 @@ const Nav = (function() {
     function resetExplore() {
         frontierGoal = null;
         lastFrontierSearch = 0;
+        stuckCount = 0;
+        recoveryMode = false;
+        lastPose = {x: 0, y: 0};
     }
 
     // Public API

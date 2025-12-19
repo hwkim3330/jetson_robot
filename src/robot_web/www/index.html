@@ -717,11 +717,11 @@ function drawMap() {
     }
 
     // Draw robot (blue triangle at center)
-    // ROS: theta=0 is +X (right), theta=PI/2 is +Y (up on canvas after Y-flip)
-    // Arrow drawn pointing UP, so we rotate by (PI/2 - theta) to align with ROS
+    // theta=0 → UP (forward), theta=PI/2 → LEFT, theta=-PI/2 → RIGHT
+    // Intuitive: robot starts facing UP on screen
     mapCtx.save();
     mapCtx.translate(cx, cy);
-    mapCtx.rotate(Math.PI/2 - robotPose.theta);  // Fixed: proper ROS→Canvas rotation
+    mapCtx.rotate(-robotPose.theta);  // theta=0 is UP (forward direction)
     mapCtx.fillStyle = '#007aff';
     mapCtx.beginPath();
     mapCtx.moveTo(0, -12);   // tip points up (will be rotated to match heading)
@@ -875,32 +875,15 @@ function initJoys() {
     joys = { j1: mkJoy('jz1'), j2: mkJoy('jz2'), j3: mkJoy('jz3') };
 }
 
-// Velocity control - 10Hz matches Dynamixel motor update rate
-let tL=0, tA=0;          // Target velocity
-let cL=0, cA=0;          // Current velocity (smoothed)
+// Velocity control - 10Hz direct publish (no smoothing, like navLoop)
+let tL=0, tA=0;
 let lp=null, keys={};
-const RAMP_RATE = 0.3;   // Velocity change per 100ms (10Hz)
 
-function send(l, a) { tL = l; tA = a; if(!lp) lp = setInterval(pub, 100); }  // 10Hz for motor
+function send(l, a) { tL = l; tA = a; if(!lp) lp = setInterval(pub, 100); }
 function pub() {
     if(!cmdVel || !conn) return;
-
-    // Smooth velocity ramping (prevents jerky motor movement)
-    const dl = tL - cL;
-    const da = tA - cA;
-    if(Math.abs(dl) > RAMP_RATE) cL += Math.sign(dl) * RAMP_RATE;
-    else cL = tL;
-    if(Math.abs(da) > RAMP_RATE * 3) cA += Math.sign(da) * RAMP_RATE * 3;  // Angular can change faster
-    else cA = tA;
-
-    cmdVel.publish(new ROSLIB.Message({linear:{x:cL,y:0,z:0}, angular:{x:0,y:0,z:cA}}));
-
-    // Only stop interval when both target AND current are zero
-    if(!tL && !tA && Math.abs(cL) < 0.01 && Math.abs(cA) < 0.01) {
-        cL = cA = 0;  // Ensure exact zero
-        clearInterval(lp);
-        lp = null;
-    }
+    cmdVel.publish(new ROSLIB.Message({linear:{x:tL,y:0,z:0}, angular:{x:0,y:0,z:tA}}));
+    if(!tL && !tA) { clearInterval(lp); lp = null; }
 }
 function stop() { tL = tA = 0; }
 
@@ -1104,20 +1087,22 @@ function exploreLoop() {
     const STOP_DIST = 0.25;
     const SLOW_DIST = 0.35;
 
-    // Stuck detection - if robot hasn't moved for 2.5 seconds
+    // Stuck detection - if robot hasn't moved for 1.8 seconds
     const moved = Math.sqrt(Math.pow(robotPose.x - lastPos.x, 2) + Math.pow(robotPose.y - lastPos.y, 2));
-    if(moved > 0.08) {
+    if(moved > 0.05) {
         lastPos = {x: robotPose.x, y: robotPose.y};
         stuckTime = now;
         if(!escapeMode) escapeCount = Math.max(0, escapeCount - 1);
         escapeMode = false;
-    } else if(now - stuckTime > 2500 && !escapeMode) {
+    } else if(now - stuckTime > 1800 && !escapeMode) {
         escapeMode = true;
         escapeStart = now;
         escapeCount++;
-        // Alternate escape direction, with preference for more open side
-        escapeDir = left > right ? 1 : -1;
+        // Smart escape direction: prefer open side, alternate if stuck repeatedly
+        const bestSide = Math.max(left, frontLeft) > Math.max(right, frontRight);
+        escapeDir = bestSide ? 1 : -1;
         if(escapeCount > 2) escapeDir = -escapeDir;  // Try opposite if stuck repeatedly
+        if(escapeCount > 4) escapeDir = Math.random() > 0.5 ? 1 : -1;  // Random if very stuck
         document.getElementById('mstat').textContent = `Stuck! Escape #${escapeCount}`;
     }
 
