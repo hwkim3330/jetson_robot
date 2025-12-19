@@ -246,23 +246,24 @@ function initMapViewer() {
         divID: 'mapDiv',
         width: w,
         height: h,
-        background: '#2c2c2e'
+        background: '#1a1a1c'
     });
+    console.log('ROS2D Viewer created:', w, 'x', h);
 
-    // Robot marker (navigation arrow)
+    // Robot marker (navigation arrow) - size in meters
     robotMarker = new ROS2D.NavigationArrow({
-        size: 0.25,
-        strokeSize: 0.015,
+        size: 0.4,  // 40cm arrow
+        strokeSize: 0.02,
         fillColor: createjs.Graphics.getRGB(0, 122, 255),
         pulse: false
     });
     robotMarker.visible = false;
     mapViewer.scene.addChild(robotMarker);
 
-    // Goal marker
+    // Goal marker - size in meters
     goalMarkerShape = new createjs.Shape();
-    goalMarkerShape.graphics.beginFill('#ff3b30').drawCircle(0, 0, 0.12);
-    goalMarkerShape.graphics.beginFill('#fff').drawCircle(0, 0, 0.04);
+    goalMarkerShape.graphics.beginFill('#ff3b30').drawCircle(0, 0, 0.2);  // 20cm outer
+    goalMarkerShape.graphics.beginFill('#fff').drawCircle(0, 0, 0.08);  // 8cm inner
     goalMarkerShape.visible = false;
     mapViewer.scene.addChild(goalMarkerShape);
 
@@ -523,19 +524,49 @@ function setupMapClient() {
     gridClient.on('change', function() {
         console.log('gridClient change event - map received');
         if(gridClient.currentGrid) {
+            // Get map dimensions (already in meters after scaling in OccupancyGrid)
+            const mapWidth = gridClient.currentGrid.width;
+            const mapHeight = gridClient.currentGrid.height;
+            const resolution = gridClient.currentGrid.scaleX || 0.05;
+            // Grid origin position from pose (set by OccupancyGrid from message origin)
+            const pose = gridClient.currentGrid.pose;
+            const originX = pose ? pose.position.x : (gridClient.currentGrid.x || 0);
+            const originY = pose ? pose.position.y : (gridClient.currentGrid.y + mapHeight || 0);  // y stores -height-originY
+
             mapInfo = {
-                width: gridClient.currentGrid.width,
-                height: gridClient.currentGrid.height,
-                resolution: gridClient.currentGrid.scaleX || 0.05,
-                origin: {position: {x: gridClient.currentGrid.x, y: gridClient.currentGrid.y}}
+                width: Math.round(mapWidth / resolution),  // Grid cells
+                height: Math.round(mapHeight / resolution),
+                resolution: resolution,
+                origin: {position: {x: originX, y: originY}}
             };
-            // Scale to fit map in viewer
-            mapViewer.scaleToDimensions(gridClient.currentGrid.width, gridClient.currentGrid.height);
+
+            console.log('Map info:', mapWidth.toFixed(2), 'x', mapHeight.toFixed(2), 'm, origin:', originX.toFixed(2), originY.toFixed(2));
+
+            // Scale to fit map with uniform aspect ratio (use smaller scale to fit both dimensions)
+            const viewerW = mapViewer.width;
+            const viewerH = mapViewer.height;
+            const scaleX = viewerW / mapWidth;
+            const scaleY = viewerH / mapHeight;
+            const scale = Math.min(scaleX, scaleY) * 0.9;  // 90% to leave margin
+
+            // Apply uniform scale
+            mapViewer.scene.scaleX = scale;
+            mapViewer.scene.scaleY = scale;
+
+            // Center the map in the viewer
+            // Map center in world coordinates
+            const mapCenterX = originX + mapWidth / 2;
+            const mapCenterY = originY + mapHeight / 2;
+
+            // Position scene so map center is at viewer center
+            // scene.x + mapCenterX * scale = viewerW/2
+            // scene.y - mapCenterY * scale = viewerH/2  (Y is flipped in ROS2D)
+            mapViewer.scene.x = viewerW / 2 - mapCenterX * scale;
+            mapViewer.scene.y = viewerH / 2 + mapCenterY * scale;
+
             // Update map info display
-            const mw = mapInfo.width * mapInfo.resolution;
-            const mh = mapInfo.height * mapInfo.resolution;
-            document.getElementById('mapInfo').innerHTML = `${mw.toFixed(1)}×${mh.toFixed(1)}m`;
-            console.log('Map scaled:', mw.toFixed(1), 'x', mh.toFixed(1), 'm');
+            document.getElementById('mapInfo').innerHTML = `${mapWidth.toFixed(1)}×${mapHeight.toFixed(1)}m`;
+            console.log('Map centered at world:', mapCenterX.toFixed(2), mapCenterY.toFixed(2), 'scale:', scale.toFixed(1));
         }
     });
 
@@ -651,18 +682,18 @@ function updateMapOverlays() {
     // Update path line (draw global path)
     if(pathLine) {
         pathLine.graphics.clear();
-        // Global path (blue)
+        // Global path (blue) - 5cm wide line
         if(globalPath.length > 1) {
-            pathLine.graphics.setStrokeStyle(0.03).beginStroke('#007aff');
+            pathLine.graphics.setStrokeStyle(0.05).beginStroke('#007aff');
             pathLine.graphics.moveTo(globalPath[0].x, -globalPath[0].y);
             for(let i = 1; i < globalPath.length; i++) {
                 pathLine.graphics.lineTo(globalPath[i].x, -globalPath[i].y);
             }
             pathLine.graphics.endStroke();
         }
-        // Local path (green dashed)
+        // Local path (green) - 3cm wide line
         if(localPath.length > 1) {
-            pathLine.graphics.setStrokeStyle(0.02).beginStroke('#34c759');
+            pathLine.graphics.setStrokeStyle(0.03).beginStroke('#34c759');
             pathLine.graphics.moveTo(localPath[0].x, -localPath[0].y);
             for(let i = 1; i < localPath.length; i++) {
                 pathLine.graphics.lineTo(localPath[i].x, -localPath[i].y);
