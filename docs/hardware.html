@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware Setup - SDV Robot</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+    <div class="nav-container">
+        <a href="index.html" class="logo">SDV <span>Robot</span></a>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="hardware.html" class="active">Hardware</a></li>
+            <li><a href="slam.html">SLAM</a></li>
+            <li><a href="navigation.html">Navigation</a></li>
+            <li><a href="ai.html">AI Detection</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+        </ul>
+    </div>
+</nav>
+
+<header>
+    <h1>Hardware Setup</h1>
+    <p class="subtitle">SDV 로봇 하드웨어 구성 및 연결 가이드</p>
+</header>
+
+<div class="container">
+
+<section>
+    <h2>Components Overview</h2>
+    <table>
+        <tr><th>Component</th><th>Model</th><th>Interface</th><th>Purpose</th></tr>
+        <tr><td><strong>Main Board</strong></td><td>Jetson Orin Nano Super 8GB</td><td>-</td><td>AI 연산, ROS2 실행</td></tr>
+        <tr><td><strong>Camera</strong></td><td>IMX219 CSI (160° FOV)</td><td>MIPI CSI-2</td><td>시각 정보 획득</td></tr>
+        <tr><td><strong>LiDAR</strong></td><td>LD19 360°</td><td>USB (UART)</td><td>거리 측정, SLAM</td></tr>
+        <tr><td><strong>Motors</strong></td><td>Dynamixel XL430-W250-T × 2</td><td>TTL (3-pin)</td><td>휠 구동</td></tr>
+        <tr><td><strong>Controller</strong></td><td>OpenCR 1.0</td><td>USB</td><td>모터 제어, IMU</td></tr>
+        <tr><td><strong>Power</strong></td><td>9V DC (2S LiPo / Adapter)</td><td>DC Jack</td><td>전원 공급</td></tr>
+    </table>
+</section>
+
+<section>
+    <h2>NVIDIA Jetson Orin Nano Super</h2>
+    <div class="info-box">
+        <strong>Edge AI의 핵심</strong> - 67 TOPS AI 성능으로 실시간 객체 인식과 자율주행 연산을 처리합니다.
+    </div>
+
+    <table>
+        <tr><th>Specification</th><th>Value</th></tr>
+        <tr><td>GPU</td><td>1024-core NVIDIA Ampere architecture</td></tr>
+        <tr><td>CPU</td><td>6-core Arm Cortex-A78AE (up to 1.7GHz)</td></tr>
+        <tr><td>Memory</td><td>8GB LPDDR5 (102 GB/s)</td></tr>
+        <tr><td>Storage</td><td>NVMe SSD (recommended)</td></tr>
+        <tr><td>AI Performance</td><td>67 TOPS (INT8) / 34 TFLOPS (FP16)</td></tr>
+        <tr><td>Power</td><td>7W ~ 25W (configurable)</td></tr>
+        <tr><td>Video Encode</td><td>1080p @ 60fps (H.265)</td></tr>
+        <tr><td>Video Decode</td><td>4K @ 60fps (H.265)</td></tr>
+    </table>
+
+    <h3>주요 연결 포트</h3>
+    <div class="cards">
+        <div class="card nvidia">
+            <h3>CSI Camera</h3>
+            <p>MIPI CSI-2 커넥터로 IMX219 카메라 연결</p>
+            <p><code>/dev/video0</code></p>
+        </div>
+        <div class="card nvidia">
+            <h3>USB Ports</h3>
+            <p>LiDAR, OpenCR 연결</p>
+            <p><code>/dev/ttyUSB0</code>, <code>/dev/ttyACM0</code></p>
+        </div>
+        <div class="card nvidia">
+            <h3>GPIO</h3>
+            <p>40-pin GPIO 헤더 (확장용)</p>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>ROBOTIS Dynamixel XL430-W250-T</h2>
+    <div class="info-box">
+        <strong>스마트 액추에이터</strong> - 위치, 속도, 토크 피드백을 제공하는 고성능 서보 모터입니다.
+    </div>
+
+    <div class="grid-2">
+        <div>
+            <table>
+                <tr><th>Specification</th><th>Value</th></tr>
+                <tr><td>Model</td><td>XL430-W250-T</td></tr>
+                <tr><td>Stall Torque</td><td>1.0 N·m (@ 9V)</td></tr>
+                <tr><td>No Load Speed</td><td>47 rpm (@ 9V)</td></tr>
+                <tr><td>Operating Voltage</td><td>6.5V ~ 12V</td></tr>
+                <tr><td>Protocol</td><td>Dynamixel Protocol 2.0</td></tr>
+                <tr><td>Resolution</td><td>4096 steps/rev (0.088°)</td></tr>
+                <tr><td>Interface</td><td>TTL (3-pin: GND, VCC, Data)</td></tr>
+            </table>
+        </div>
+        <div>
+            <h3>Motor Configuration</h3>
+            <table>
+                <tr><th>Motor</th><th>ID</th><th>Position</th></tr>
+                <tr><td>Left Wheel</td><td><code>1</code></td><td>왼쪽</td></tr>
+                <tr><td>Right Wheel</td><td><code>2</code></td><td>오른쪽</td></tr>
+            </table>
+
+            <h3>Feedback Data</h3>
+            <ul>
+                <li>Position (현재 위치)</li>
+                <li>Velocity (현재 속도)</li>
+                <li>Load (부하량)</li>
+                <li>Voltage (입력 전압)</li>
+                <li>Temperature (온도)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="algorithm-box">
+        <h4>Differential Drive Kinematics</h4>
+        <p>두 바퀴의 속도 차이로 회전을 제어합니다:</p>
+<pre>
+Linear Velocity (v)  = (v_right + v_left) / 2
+Angular Velocity (ω) = (v_right - v_left) / wheel_separation
+
+wheel_separation = 160mm
+wheel_diameter   = 66mm
+</pre>
+    </div>
+</section>
+
+<section>
+    <h2>OpenCR 1.0 Controller</h2>
+    <div class="info-box">
+        <strong>TurtleBot3 컨트롤러</strong> - Dynamixel 모터 제어와 IMU 센서를 통합한 임베디드 보드입니다.
+    </div>
+
+    <table>
+        <tr><th>Specification</th><th>Value</th></tr>
+        <tr><td>MCU</td><td>ARM Cortex-M7 (STM32F746ZGT6)</td></tr>
+        <tr><td>Clock</td><td>216 MHz</td></tr>
+        <tr><td>Flash</td><td>1 MB</td></tr>
+        <tr><td>SRAM</td><td>320 KB</td></tr>
+        <tr><td>IMU</td><td>ICM-20648 (6-axis: Gyro + Accel)</td></tr>
+        <tr><td>Interface</td><td>USB (host), Dynamixel TTL</td></tr>
+    </table>
+
+    <h3>Connection Diagram</h3>
+    <div class="diagram">
+Jetson (USB) ──── OpenCR ──┬── Dynamixel (Left, ID:1)
+                           │
+                           └── Dynamixel (Right, ID:2)
+
+Device: /dev/ttyACM0 (or /dev/ttyTHS1)
+Baud Rate: 1000000 bps
+    </div>
+</section>
+
+<section>
+    <h2>LD19 LiDAR</h2>
+    <div class="info-box">
+        <strong>360° 2D LiDAR</strong> - SLAM과 장애물 감지를 위한 레이저 스캐너입니다.
+    </div>
+
+    <table>
+        <tr><th>Specification</th><th>Value</th></tr>
+        <tr><td>Range</td><td>0.1m ~ 12m</td></tr>
+        <tr><td>Scan Rate</td><td>10 Hz (초당 10회전)</td></tr>
+        <tr><td>Angular Resolution</td><td>~1° (360 points/scan)</td></tr>
+        <tr><td>Points per Scan</td><td>450+</td></tr>
+        <tr><td>FOV</td><td>360°</td></tr>
+        <tr><td>Interface</td><td>USB (UART, 230400 baud)</td></tr>
+        <tr><td>ROS Frame</td><td><code>base_laser</code></td></tr>
+    </table>
+
+    <h3>LiDAR Data Flow</h3>
+    <div class="flow">
+        <div class="flow-item">LD19 Sensor</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">USB/UART</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item ros">ldlidar_node</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item ros">/scan topic</div>
+    </div>
+</section>
+
+<section>
+    <h2>IMX219 CSI Camera</h2>
+    <table>
+        <tr><th>Specification</th><th>Value</th></tr>
+        <tr><td>Sensor</td><td>Sony IMX219</td></tr>
+        <tr><td>Max Resolution</td><td>3280 × 2464</td></tr>
+        <tr><td>Used Resolution</td><td>640 × 360 (16:9)</td></tr>
+        <tr><td>FOV</td><td>160° (wide-angle lens)</td></tr>
+        <tr><td>Interface</td><td>MIPI CSI-2</td></tr>
+        <tr><td>Stream FPS</td><td>15 fps (configured)</td></tr>
+    </table>
+
+    <h3>GStreamer Pipeline</h3>
+<pre>
+nvarguscamerasrc sensor-id=0 !
+    video/x-raw(memory:NVMM),width=640,height=360,framerate=15/1 !
+    nvvidconv !
+    video/x-raw,format=BGRx !
+    videoconvert !
+    video/x-raw,format=BGR !
+    appsink
+</pre>
+</section>
+
+<section>
+    <h2>Power System</h2>
+    <table>
+        <tr><th>Component</th><th>Voltage</th><th>Current</th></tr>
+        <tr><td>Jetson Orin Nano</td><td>9V ~ 19V DC</td><td>3 ~ 5A</td></tr>
+        <tr><td>Dynamixel Motors × 2</td><td>9V DC</td><td>0.5A × 2</td></tr>
+        <tr><td>OpenCR</td><td>9V DC (from motors)</td><td>0.3A</td></tr>
+        <tr><td>LiDAR (USB powered)</td><td>5V</td><td>0.5A</td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>9V DC</strong></td><td><strong>~5A</strong></td></tr>
+    </table>
+
+    <h3>Power Options</h3>
+    <div class="grid-2">
+        <div class="card">
+            <h3>🔋 2S LiPo Battery</h3>
+            <p>7.4V nominal, 8.4V full charge</p>
+            <ul>
+                <li>Capacity: 2000mAh+ recommended</li>
+                <li>Runtime: ~30-60 minutes</li>
+                <li>Portable operation</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3>🔌 DC Adapter</h3>
+            <p>9V, 5A power supply</p>
+            <ul>
+                <li>For development/testing</li>
+                <li>Stable power supply</li>
+                <li>Unlimited runtime</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>Wiring Diagram</h2>
+    <div class="diagram">
+                    ┌─────────────────────────────────────┐
+                    │         Jetson Orin Nano             │
+                    │                                      │
+                    │  ┌──────┐  ┌──────┐  ┌──────────┐   │
+                    │  │ CSI  │  │ USB  │  │ USB/UART │   │
+                    │  └──┬───┘  └──┬───┘  └────┬─────┘   │
+                    │     │         │           │         │
+                    └─────┼─────────┼───────────┼─────────┘
+                          │         │           │
+          ┌───────────────┘         │           └───────────────┐
+          │                         │                           │
+          ▼                         ▼                           ▼
+    ┌──────────┐             ┌──────────┐               ┌──────────┐
+    │  IMX219  │             │   LD19   │               │  OpenCR  │
+    │  Camera  │             │  LiDAR   │               │   1.0    │
+    │ (160°FOV)│             │  (360°)  │               │          │
+    └──────────┘             └──────────┘               └────┬─────┘
+                                                              │
+                              ┌────────────────────────┬──────┘
+                              │                        │
+                              ▼                        ▼
+                        ┌──────────┐            ┌──────────┐
+                        │ XL430    │            │ XL430    │
+                        │ (Left)   │────────────│ (Right)  │
+                        │  ID: 1   │  Daisy     │  ID: 2   │
+                        └──────────┘  Chain     └──────────┘
+                              │                        │
+                              └──────────┬─────────────┘
+                                         │
+                                         ▼
+                                   ┌──────────┐
+                                   │   9V DC  │
+                                   │  Power   │
+                                   └──────────┘
+    </div>
+</section>
+
+<section>
+    <h2>Robot Dimensions</h2>
+    <table>
+        <tr><th>Parameter</th><th>Value</th></tr>
+        <tr><td>Wheel Diameter</td><td>66mm</td></tr>
+        <tr><td>Wheel Separation</td><td>160mm</td></tr>
+        <tr><td>Robot Width</td><td>~180mm</td></tr>
+        <tr><td>Robot Length</td><td>~140mm</td></tr>
+        <tr><td>Robot Height</td><td>~200mm</td></tr>
+        <tr><td>Weight</td><td>~1.0 kg (without battery)</td></tr>
+    </table>
+</section>
+
+<section>
+    <h2>Device Configuration</h2>
+
+    <h3>Check Connected Devices</h3>
+<pre>
+# USB 장치 확인
+lsusb
+
+# 시리얼 포트 확인
+ls -la /dev/ttyUSB* /dev/ttyACM* /dev/ttyTHS*
+
+# 카메라 확인
+ls /dev/video*
+v4l2-ctl --list-devices
+</pre>
+
+    <h3>Set Permissions</h3>
+<pre>
+# dialout 그룹에 사용자 추가 (시리얼 포트 접근)
+sudo usermod -a -G dialout $USER
+
+# 그룹 변경 적용 (또는 재부팅)
+newgrp dialout
+</pre>
+
+    <h3>udev Rules (Optional)</h3>
+<pre>
+# LiDAR rule (LD19)
+sudo tee /etc/udev/rules.d/99-lidar.rules << 'EOF'
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="lidar", MODE="0666"
+EOF
+
+# OpenCR rule
+sudo tee /etc/udev/rules.d/99-opencr.rules << 'EOF'
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", SYMLINK+="opencr", MODE="0666"
+EOF
+
+# 규칙 적용
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+</pre>
+</section>
+
+<section>
+    <h2>Troubleshooting</h2>
+
+    <h3>Camera Issues</h3>
+    <table>
+        <tr><th>Problem</th><th>Solution</th></tr>
+        <tr><td>No /dev/video0</td><td>CSI 케이블 연결 확인</td></tr>
+        <tr><td>Black image</td><td>렌즈 캡 제거, 케이블 재연결</td></tr>
+        <tr><td>Low FPS</td><td>설정에서 해상도 낮추기</td></tr>
+        <tr><td>Overheating</td><td>히트싱크 추가, 환기 개선</td></tr>
+    </table>
+
+    <h3>LiDAR Issues</h3>
+    <table>
+        <tr><th>Problem</th><th>Solution</th></tr>
+        <tr><td>No /dev/ttyUSB0</td><td>USB 연결 확인, 다른 포트 시도</td></tr>
+        <tr><td>No scan data</td><td>Baud rate 확인 (230400)</td></tr>
+        <tr><td>Incomplete scan</td><td>LiDAR 렌즈 청소</td></tr>
+        <tr><td>Noisy data</td><td>전원 안정성 확인</td></tr>
+    </table>
+
+    <h3>Motor Issues</h3>
+    <table>
+        <tr><th>Problem</th><th>Solution</th></tr>
+        <tr><td>No response</td><td>전원, OpenCR 연결 확인</td></tr>
+        <tr><td>Wrong direction</td><td>모터 ID 확인</td></tr>
+        <tr><td>Jerky motion</td><td>전압 확인 (~9V)</td></tr>
+        <tr><td>Overheating</td><td>부하 줄이기, 기계적 결함 확인</td></tr>
+    </table>
+</section>
+
+</div>
+
+<footer>
+    <p><strong>SDV Robot</strong> - Hardware Documentation</p>
+    <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="slam.html">SLAM</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="ai.html">AI</a>
+        <a href="architecture.html">Architecture</a>
+    </div>
+    <p style="margin-top: 20px;">Developed by <a href="https://www.keti.re.kr">KETI</a></p>
+</footer>
+
+</body>
+</html>

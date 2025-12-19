@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation - SDV Robot</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+    <div class="nav-container">
+        <a href="index.html" class="logo">SDV <span>Robot</span></a>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="hardware.html">Hardware</a></li>
+            <li><a href="slam.html">SLAM</a></li>
+            <li><a href="navigation.html" class="active">Navigation</a></li>
+            <li><a href="ai.html">AI Detection</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+        </ul>
+    </div>
+</nav>
+
+<header>
+    <h1>Navigation</h1>
+    <p class="subtitle">Nav2 기반 자율 주행 시스템</p>
+</header>
+
+<div class="container">
+
+<section>
+    <h2>Nav2란?</h2>
+    <p><strong>Nav2 (Navigation 2)</strong>는 ROS2의 공식 네비게이션 프레임워크입니다. 목표 지점까지 안전하고 효율적인 경로를 계획하고, 실시간으로 장애물을 회피하며 이동합니다.</p>
+
+    <div class="info-box">
+        <strong>핵심 기능</strong>: 위치 추정 (AMCL) → 전역 경로 계획 → 지역 경로 추적 → 장애물 회피 → 로봇 제어
+    </div>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value">5cm</div>
+            <div class="stat-label">위치 정확도</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">0.2m/s</div>
+            <div class="stat-label">최대 속도</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">0.25m</div>
+            <div class="stat-label">회피 거리</div>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>Nav2 Architecture</h2>
+    <div class="diagram">
+     Nav2 Stack Overview
+     ═══════════════════════════════════════════════════════════════════
+
+     ┌─────────────────────────────────────────────────────────────────┐
+     │                        BT Navigator                             │
+     │              (Behavior Tree 기반 태스크 관리)                    │
+     └───────────────────────────┬─────────────────────────────────────┘
+                                 │
+              ┌──────────────────┼──────────────────┐
+              │                  │                  │
+              ▼                  ▼                  ▼
+     ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+     │     Planner     │ │   Controller    │ │   Recovery      │
+     │    Server       │ │    Server       │ │   Server        │
+     │ (전역 경로 계획) │ │ (지역 경로 추적) │ │ (복구 행동)     │
+     └────────┬────────┘ └────────┬────────┘ └────────┬────────┘
+              │                   │                   │
+              ▼                   ▼                   ▼
+     ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+     │   NavFn/        │ │    DWB/         │ │   Spin/         │
+     │   Theta*        │ │    TEB          │ │   BackUp        │
+     │   Planner       │ │   Controller    │ │   Wait          │
+     └─────────────────┘ └─────────────────┘ └─────────────────┘
+                                 │
+                                 ▼
+                        ┌─────────────────┐
+                        │    /cmd_vel     │
+                        │  (로봇 제어)    │
+                        └─────────────────┘
+    </div>
+</section>
+
+<section>
+    <h2>AMCL (위치 추정)</h2>
+    <p><strong>AMCL (Adaptive Monte Carlo Localization)</strong>은 파티클 필터를 사용하여 저장된 맵 위에서 로봇의 위치를 추정합니다.</p>
+
+    <div class="algorithm-box">
+        <h4>Monte Carlo Localization Algorithm</h4>
+        <ol>
+            <li><strong>파티클 초기화</strong>: 가능한 로봇 위치들을 파티클로 표현 (초기 1000개)</li>
+            <li><strong>모션 업데이트</strong>: 오도메트리에 따라 파티클들 이동 + 노이즈 추가</li>
+            <li><strong>센서 업데이트</strong>: LiDAR 스캔과 맵 비교하여 각 파티클의 가중치 계산</li>
+            <li><strong>리샘플링</strong>: 가중치에 비례하여 파티클 재샘플링</li>
+            <li><strong>위치 추정</strong>: 파티클들의 가중 평균으로 로봇 위치 결정</li>
+        </ol>
+        <div class="highlight">
+            <strong>Adaptive</strong>: 로봇이 확실한 위치에 있으면 파티클 수 감소, 불확실하면 증가
+        </div>
+    </div>
+
+    <div class="diagram">
+     Particle Filter Visualization
+     ═══════════════════════════════════════════════════════════════════
+
+     초기 상태 (불확실)           수렴 후 (확실)
+     ─────────────────────────   ─────────────────────────
+     ░░░░░░░░░░░░░░░░░░░░░░░░   ░░░░░░░░░░░░░░░░░░░░░░░░
+     ░░ • • •  • • • • • ░░░   ░░░░░░░░░░░░░░░░░░░░░░░░
+     ░░ •   •   •   •   • ░░   ░░░░░░░░░░░░░░░░░░░░░░░░
+     ░░   •   🤖  •   •   ░░   ░░░░░░░░░🤖•••░░░░░░░░░░
+     ░░ •   •   •   •   • ░░   ░░░░░░░░░░••░░░░░░░░░░░░
+     ░░ • • •  • • • • • ░░░   ░░░░░░░░░░░░░░░░░░░░░░░░
+     ░░░░░░░░░░░░░░░░░░░░░░░░   ░░░░░░░░░░░░░░░░░░░░░░░░
+
+     • = 파티클 (Particle)
+     🤖 = 추정된 로봇 위치
+    </div>
+
+    <h3>AMCL 파라미터</h3>
+    <table>
+        <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
+        <tr><td>min_particles</td><td>500</td><td>최소 파티클 수</td></tr>
+        <tr><td>max_particles</td><td>2000</td><td>최대 파티클 수</td></tr>
+        <tr><td>update_min_d</td><td>0.1m</td><td>업데이트 최소 이동 거리</td></tr>
+        <tr><td>update_min_a</td><td>0.2rad</td><td>업데이트 최소 회전 각도</td></tr>
+        <tr><td>resample_interval</td><td>1</td><td>리샘플링 간격</td></tr>
+    </table>
+</section>
+
+<section>
+    <h2>Global Planner (전역 경로 계획)</h2>
+    <p>시작점에서 목표점까지의 최적 경로를 계획합니다. SDV Robot은 <strong>NavFn</strong> 플래너를 사용합니다.</p>
+
+    <div class="algorithm-box">
+        <h4>NavFn (Navigation Function) Algorithm</h4>
+        <p>Dijkstra/A* 알고리즘 기반의 전역 경로 계획기입니다.</p>
+        <ol>
+            <li><strong>Costmap 생성</strong>: 맵에서 각 셀의 이동 비용 계산</li>
+            <li><strong>파동 전파</strong>: 목표 지점에서 시작하여 파동처럼 비용 전파</li>
+            <li><strong>경로 추출</strong>: 시작점에서 비용이 감소하는 방향으로 경로 추출</li>
+            <li><strong>경로 평활화</strong>: 부드러운 경로로 후처리</li>
+        </ol>
+    </div>
+
+    <div class="diagram">
+     Global Path Planning (A* Example)
+     ═══════════════════════════════════════════════════════════════════
+
+     ████████████████████████████████████████
+     ██                                    ██
+     ██  S ─────────────────┐              ██
+     ██                     │              ██
+     ██  ████████████████   │              ██
+     ██  ████████████████   │              ██
+     ██  ████████████████   │              ██
+     ██                     │              ██
+     ██                     └───────── G   ██
+     ██                                    ██
+     ████████████████████████████████████████
+
+     S = Start (시작)    G = Goal (목표)
+     ─ = Planned Path (계획된 경로)
+     █ = Obstacle (장애물)
+    </div>
+
+    <h3>Costmap 구조</h3>
+    <div class="cards">
+        <div class="card ros">
+            <h3>Static Layer</h3>
+            <p>저장된 맵 정보</p>
+            <ul>
+                <li>SLAM으로 생성된 맵</li>
+                <li>벽, 고정 장애물</li>
+                <li>변경되지 않음</li>
+            </ul>
+        </div>
+        <div class="card ros">
+            <h3>Obstacle Layer</h3>
+            <p>실시간 장애물</p>
+            <ul>
+                <li>LiDAR 센서 데이터</li>
+                <li>동적 장애물 반영</li>
+                <li>지속적 업데이트</li>
+            </ul>
+        </div>
+        <div class="card ros">
+            <h3>Inflation Layer</h3>
+            <p>안전 마진</p>
+            <ul>
+                <li>장애물 주변 버퍼 영역</li>
+                <li>로봇 반경 고려</li>
+                <li>충돌 방지</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3>Costmap 값</h3>
+    <table>
+        <tr><th>Cost Value</th><th>Meaning</th><th>Description</th></tr>
+        <tr><td><code>0</code></td><td>Free Space</td><td>이동 가능한 빈 공간</td></tr>
+        <tr><td><code>1-252</code></td><td>Inflation</td><td>장애물에서의 거리에 따른 비용</td></tr>
+        <tr><td><code>253</code></td><td>Inscribed</td><td>로봇 중심이 들어갈 수 없는 영역</td></tr>
+        <tr><td><code>254</code></td><td>Lethal</td><td>장애물 (절대 이동 불가)</td></tr>
+        <tr><td><code>255</code></td><td>Unknown</td><td>미탐색 영역</td></tr>
+    </table>
+</section>
+
+<section>
+    <h2>Local Controller (지역 경로 추적)</h2>
+    <p>전역 경로를 따라가면서 동적 장애물을 회피합니다. SDV Robot은 <strong>DWB (Dynamic Window Approach)</strong> 컨트롤러를 사용합니다.</p>
+
+    <div class="algorithm-box">
+        <h4>DWB (Dynamic Window Approach) Algorithm</h4>
+        <ol>
+            <li><strong>속도 공간 생성</strong>: 가능한 선속도/각속도 조합 생성</li>
+            <li><strong>궤적 시뮬레이션</strong>: 각 속도 조합으로 미래 경로 예측</li>
+            <li><strong>비용 평가</strong>: 각 궤적의 비용 계산
+                <ul>
+                    <li>장애물 근접도</li>
+                    <li>전역 경로 일치도</li>
+                    <li>목표 방향 정렬</li>
+                    <li>속도 선호도</li>
+                </ul>
+            </li>
+            <li><strong>최적 속도 선택</strong>: 최저 비용의 속도 명령 발행</li>
+        </ol>
+    </div>
+
+    <div class="diagram">
+     DWB Trajectory Simulation
+     ═══════════════════════════════════════════════════════════════════
+
+                    ┌─── 후보 궤적들
+                    │
+                    ▼
+                 ╱╱╱╲
+               ╱╱   ╲╲
+              ╱       ╲
+             ╱    ●    ╲ ← 장애물
+            ╱     │     ╲
+           ╱      │      ╲
+          🤖 ────────────── G
+               ↑
+               └── 최적 궤적 선택
+
+     비용 함수:
+       Cost = w1 × obstacle_cost
+            + w2 × path_distance_cost
+            + w3 × goal_distance_cost
+            + w4 × alignment_cost
+    </div>
+
+    <h3>DWB 파라미터</h3>
+    <table>
+        <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
+        <tr><td>max_vel_x</td><td>0.2 m/s</td><td>최대 전진 속도</td></tr>
+        <tr><td>min_vel_x</td><td>-0.1 m/s</td><td>최대 후진 속도</td></tr>
+        <tr><td>max_vel_theta</td><td>1.0 rad/s</td><td>최대 회전 속도</td></tr>
+        <tr><td>acc_lim_x</td><td>1.0 m/s²</td><td>선가속도 제한</td></tr>
+        <tr><td>acc_lim_theta</td><td>2.0 rad/s²</td><td>각가속도 제한</td></tr>
+        <tr><td>sim_time</td><td>1.5 s</td><td>궤적 시뮬레이션 시간</td></tr>
+    </table>
+</section>
+
+<section>
+    <h2>Recovery Behaviors (복구 행동)</h2>
+    <p>로봇이 막혔을 때 자동으로 복구를 시도합니다.</p>
+
+    <div class="cards">
+        <div class="card">
+            <h3>🔄 Spin</h3>
+            <p>제자리 회전</p>
+            <ul>
+                <li>360° 회전하며 costmap 갱신</li>
+                <li>새로운 센서 데이터 수집</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3>⬅️ BackUp</h3>
+            <p>후진</p>
+            <ul>
+                <li>일정 거리 후진</li>
+                <li>막힌 상황 탈출</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3>⏳ Wait</h3>
+            <p>대기</p>
+            <ul>
+                <li>일정 시간 대기</li>
+                <li>동적 장애물 이동 대기</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3>🗺️ Clear Costmap</h3>
+            <p>Costmap 초기화</p>
+            <ul>
+                <li>잘못된 장애물 정보 제거</li>
+                <li>센서 노이즈 초기화</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>Behavior Tree</h2>
+    <p>Nav2는 Behavior Tree를 사용하여 복잡한 네비게이션 로직을 관리합니다.</p>
+
+    <div class="diagram">
+     Navigation Behavior Tree
+     ═══════════════════════════════════════════════════════════════════
+
+                            ┌─────────────┐
+                            │   Root      │
+                            │ (Sequence)  │
+                            └──────┬──────┘
+                                   │
+              ┌────────────────────┼────────────────────┐
+              │                    │                    │
+              ▼                    ▼                    ▼
+     ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+     │  RateController │  │   PipelineSeq   │  │   RecoveryNode  │
+     │  (1Hz check)    │  │  (Main Logic)   │  │  (On Failure)   │
+     └─────────────────┘  └────────┬────────┘  └────────┬────────┘
+                                   │                    │
+                    ┌──────────────┼──────────────┐     │
+                    │              │              │     │
+                    ▼              ▼              ▼     ▼
+              ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+              │ComputePath│  │FollowPath│  │GoalReached│ │Spin/Back│
+              │ ToGoal   │  │          │  │          │  │  /Wait  │
+              └──────────┘  └──────────┘  └──────────┘  └──────────┘
+    </div>
+
+    <div class="info-box">
+        <strong>Behavior Tree 장점</strong>:
+        <ul>
+            <li>모듈화된 행동 정의</li>
+            <li>복잡한 로직의 시각적 표현</li>
+            <li>런타임에 행동 수정 가능</li>
+            <li>실패 시 자동 복구 분기</li>
+        </ul>
+    </div>
+</section>
+
+<section>
+    <h2>웹 UI 사용법</h2>
+
+    <h3>Navigation 모드 시작</h3>
+    <div class="timeline">
+        <div class="timeline-item">
+            <h4>1. 맵 불러오기</h4>
+            <p>Map 탭에서 저장된 맵 로드 (슬롯 선택)</p>
+        </div>
+        <div class="timeline-item">
+            <h4>2. Nav 버튼 클릭</h4>
+            <p>Navigation 모드 활성화, AMCL 시작</p>
+        </div>
+        <div class="timeline-item">
+            <h4>3. 초기 위치 설정</h4>
+            <p>맵에서 로봇의 현재 위치 탭하여 지정</p>
+        </div>
+        <div class="timeline-item">
+            <h4>4. 목표 지점 설정</h4>
+            <p>맵에서 원하는 목표 위치 탭</p>
+        </div>
+        <div class="timeline-item">
+            <h4>5. 자율 주행 시작</h4>
+            <p>로봇이 경로를 계획하고 자동으로 이동</p>
+        </div>
+    </div>
+
+    <h3>주요 토픽</h3>
+    <table>
+        <tr><th>Topic</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>/goal_pose</code></td><td>PoseStamped</td><td>목표 위치 설정</td></tr>
+        <tr><td><code>/initialpose</code></td><td>PoseWithCovarianceStamped</td><td>초기 위치 설정</td></tr>
+        <tr><td><code>/plan</code></td><td>Path</td><td>계획된 전역 경로</td></tr>
+        <tr><td><code>/local_plan</code></td><td>Path</td><td>지역 경로</td></tr>
+        <tr><td><code>/cmd_vel</code></td><td>Twist</td><td>속도 명령</td></tr>
+    </table>
+</section>
+
+<section>
+    <h2>문제 해결</h2>
+
+    <table>
+        <tr><th>Problem</th><th>Cause</th><th>Solution</th></tr>
+        <tr><td>위치 추정 실패</td><td>초기 위치 부정확</td><td>맵에서 정확한 위치 다시 설정</td></tr>
+        <tr><td>경로를 찾지 못함</td><td>목표가 장애물 내부</td><td>목표 위치 재설정</td></tr>
+        <tr><td>로봇이 막힘</td><td>좁은 공간, 동적 장애물</td><td>복구 행동 자동 실행 대기</td></tr>
+        <tr><td>경로가 비효율적</td><td>costmap 파라미터</td><td>inflation_radius 조정</td></tr>
+        <tr><td>진동/떨림</td><td>컨트롤러 게인</td><td>DWB 파라미터 튜닝</td></tr>
+    </table>
+</section>
+
+</div>
+
+<footer>
+    <p><strong>SDV Robot</strong> - Navigation Documentation</p>
+    <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="hardware.html">Hardware</a>
+        <a href="slam.html">SLAM</a>
+        <a href="ai.html">AI</a>
+        <a href="architecture.html">Architecture</a>
+    </div>
+    <p style="margin-top: 20px;">Developed by <a href="https://www.keti.re.kr">KETI</a></p>
+</footer>
+
+</body>
+</html>

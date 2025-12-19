@@ -3,200 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SDV Robot - Documentation</title>
-    <style>
-        :root {
-            --primary: #007aff;
-            --nvidia: #76b900;
-            --dark: #1c1c1e;
-            --gray: #8e8e93;
-            --bg: #f5f5f7;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--dark);
-            line-height: 1.6;
-        }
-        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
-
-        /* Header */
-        header {
-            background: linear-gradient(135deg, var(--dark) 0%, #2c2c2e 100%);
-            color: white;
-            padding: 60px 20px;
-            text-align: center;
-        }
-        header h1 { font-size: 2.5em; margin-bottom: 10px; }
-        header p { font-size: 1.2em; opacity: 0.9; }
-        .badges { margin-top: 20px; }
-        .badges img { margin: 5px; }
-
-        /* Cards */
-        .cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin: 40px 0;
-        }
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-        }
-        .card h3 { color: var(--primary); margin-bottom: 12px; font-size: 1.3em; }
-        .card p { color: var(--gray); font-size: 0.95em; }
-        .card ul { margin-top: 12px; padding-left: 20px; }
-        .card li { margin: 6px 0; }
-
-        /* Tables */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-            margin: 20px 0;
-        }
-        th, td { padding: 14px 18px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background: var(--dark); color: white; font-weight: 600; }
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background: #f9f9f9; }
-
-        /* Sections */
-        section { margin: 50px 0; }
-        section h2 {
-            font-size: 1.8em;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 3px solid var(--primary);
-            display: inline-block;
-        }
-
-        /* Code */
-        pre {
-            background: var(--dark);
-            color: #f8f8f2;
-            padding: 20px;
-            border-radius: 10px;
-            overflow-x: auto;
-            font-family: 'SF Mono', Consolas, monospace;
-            font-size: 0.9em;
-            line-height: 1.5;
-        }
-        code {
-            background: #e5e5ea;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'SF Mono', Consolas, monospace;
-            font-size: 0.9em;
-        }
-
-        /* Architecture */
-        .arch {
-            background: var(--dark);
-            color: #50fa7b;
-            font-family: 'SF Mono', Consolas, monospace;
-            white-space: pre;
-            padding: 20px;
-            border-radius: 10px;
-            overflow-x: auto;
-            font-size: 0.8em;
-            line-height: 1.4;
-        }
-
-        /* Footer */
-        footer {
-            background: var(--dark);
-            color: white;
-            text-align: center;
-            padding: 40px 20px;
-            margin-top: 60px;
-        }
-        footer a { color: var(--nvidia); text-decoration: none; }
-        footer a:hover { text-decoration: underline; }
-
-        /* Links */
-        .btn {
-            display: inline-block;
-            background: var(--primary);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 600;
-            margin: 10px 5px;
-            transition: background 0.2s;
-        }
-        .btn:hover { background: #0056b3; }
-        .btn.nvidia { background: var(--nvidia); }
-        .btn.nvidia:hover { background: #5a9000; }
-    </style>
+    <title>SDV Robot - Software Defined Vehicle</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+<nav>
+    <div class="nav-container">
+        <a href="index.html" class="logo">SDV <span>Robot</span></a>
+        <ul>
+            <li><a href="index.html" class="active">Home</a></li>
+            <li><a href="hardware.html">Hardware</a></li>
+            <li><a href="slam.html">SLAM</a></li>
+            <li><a href="navigation.html">Navigation</a></li>
+            <li><a href="ai.html">AI Detection</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+        </ul>
+    </div>
+</nav>
+
 <header>
     <h1>SDV Robot</h1>
-    <p>Software Defined Vehicle - Jetson Orin Nano 기반 자율주행 로봇</p>
+    <p class="subtitle">Software Defined Vehicle - Jetson Orin Nano 기반 자율주행 로봇</p>
     <div class="badges">
         <img src="https://img.shields.io/badge/ROS2-Humble-blue?logo=ros" alt="ROS2">
         <img src="https://img.shields.io/badge/Jetson-Orin_Nano-76B900?logo=nvidia" alt="Jetson">
         <img src="https://img.shields.io/badge/ROBOTIS-Dynamixel-red" alt="Dynamixel">
         <img src="https://img.shields.io/badge/YOLOv8-TensorRT-ff6f00" alt="YOLO">
+        <img src="https://img.shields.io/badge/License-Apache_2.0-green" alt="License">
     </div>
-    <div style="margin-top: 30px;">
-        <a href="https://github.com/hwkim3330/jetson_robot" class="btn">GitHub Repository</a>
+    <div style="margin-top: 35px; position: relative;">
+        <a href="https://github.com/hwkim3330/jetson_robot" class="btn btn-primary">GitHub Repository</a>
+        <a href="architecture.html" class="btn btn-nvidia">System Architecture</a>
     </div>
 </header>
 
 <div class="container">
 
 <section>
-    <h2>Features</h2>
+    <h2>Overview</h2>
+    <p>SDV(Software Defined Vehicle)는 NVIDIA Jetson Orin Nano Super를 기반으로 한 <strong>자율주행 로봇 플랫폼</strong>입니다. 웹 브라우저를 통해 로봇을 실시간으로 제어하고, SLAM 맵핑, 자율 주행, AI 객체 인식 등의 고급 기능을 제공합니다.</p>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value">147</div>
+            <div class="stat-label">FPS (YOLO)</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">67</div>
+            <div class="stat-label">TOPS AI</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">360°</div>
+            <div class="stat-label">LiDAR</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">12m</div>
+            <div class="stat-label">Range</div>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>Key Features</h2>
     <div class="cards">
-        <div class="card">
-            <h3>Web Control</h3>
+        <div class="card primary">
+            <h3>🎮 Web Control</h3>
             <p>모바일/PC 브라우저에서 실시간 제어</p>
             <ul>
-                <li>조이스틱 컨트롤</li>
+                <li>가상 조이스틱 컨트롤</li>
                 <li>실시간 카메라 스트리밍</li>
                 <li>LiDAR 시각화</li>
+                <li>키보드 제어 (WASD)</li>
             </ul>
         </div>
-        <div class="card">
-            <h3>SLAM Mapping</h3>
+        <div class="card ros">
+            <h3>🗺️ SLAM Mapping</h3>
             <p>Cartographer 기반 실시간 맵 생성</p>
             <ul>
+                <li>실시간 점유 격자 맵</li>
                 <li>자동 탐색 (로봇청소기 모드)</li>
                 <li>맵 저장/불러오기 (10 슬롯)</li>
                 <li>팬/줌 제스처 지원</li>
             </ul>
+            <a href="slam.html" style="color: var(--primary); font-size: 0.9em;">알고리즘 자세히 보기 →</a>
         </div>
-        <div class="card">
-            <h3>Navigation</h3>
+        <div class="card ros">
+            <h3>🧭 Navigation</h3>
             <p>Nav2 기반 자율 주행</p>
             <ul>
                 <li>목표 지점 탭하여 설정</li>
-                <li>장애물 회피</li>
+                <li>동적 장애물 회피</li>
                 <li>경로 계획 시각화</li>
+                <li>AMCL 위치 추정</li>
             </ul>
+            <a href="navigation.html" style="color: var(--primary); font-size: 0.9em;">알고리즘 자세히 보기 →</a>
         </div>
-        <div class="card">
-            <h3>AI Detection</h3>
+        <div class="card nvidia">
+            <h3>🤖 AI Detection</h3>
             <p>YOLOv8 TensorRT 객체 인식</p>
             <ul>
                 <li>147 FPS 실시간 감지</li>
                 <li>80개 클래스 인식</li>
                 <li>바운딩 박스 오버레이</li>
+                <li>사람 감지 시 자동 정지</li>
             </ul>
+            <a href="ai.html" style="color: var(--primary); font-size: 0.9em;">알고리즘 자세히 보기 →</a>
         </div>
     </div>
 </section>
@@ -205,13 +117,16 @@
     <h2>Hardware</h2>
     <table>
         <tr><th>Component</th><th>Model</th><th>Specification</th></tr>
-        <tr><td><strong>Main Board</strong></td><td>Jetson Orin Nano Super</td><td>8GB, 67 TOPS</td></tr>
+        <tr><td><strong>Main Board</strong></td><td>Jetson Orin Nano Super</td><td>8GB LPDDR5, 67 TOPS</td></tr>
         <tr><td><strong>Camera</strong></td><td>IMX219 CSI</td><td>160° FOV, 640x360@15fps</td></tr>
         <tr><td><strong>LiDAR</strong></td><td>LD19</td><td>360°, 0.1-12m, 10Hz</td></tr>
-        <tr><td><strong>Motors</strong></td><td>Dynamixel XL430-W250-T</td><td>× 2, Protocol 2.0</td></tr>
-        <tr><td><strong>Controller</strong></td><td>OpenCR 1.0</td><td>ARM Cortex-M7</td></tr>
-        <tr><td><strong>Power</strong></td><td>DC 9V</td><td>2S LiPo / Adapter</td></tr>
+        <tr><td><strong>Motors</strong></td><td>Dynamixel XL430-W250-T</td><td>× 2, Protocol 2.0, 1.0 N·m</td></tr>
+        <tr><td><strong>Controller</strong></td><td>OpenCR 1.0</td><td>ARM Cortex-M7, 216MHz</td></tr>
+        <tr><td><strong>Power</strong></td><td>DC 9V</td><td>2S LiPo / DC Adapter</td></tr>
     </table>
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="hardware.html" class="btn btn-outline">하드웨어 상세 보기</a>
+    </div>
 </section>
 
 <section>
@@ -219,28 +134,59 @@
     <div class="cards">
         <div class="card">
             <h3>1. Clone & Build</h3>
-            <pre>git clone https://github.com/hwkim3330/jetson_robot.git ~/ros2_ws
+<pre style="margin: 0;">git clone https://github.com/hwkim3330/jetson_robot.git ~/ros2_ws
 cd ~/ros2_ws
 colcon build --symlink-install</pre>
         </div>
         <div class="card">
             <h3>2. Start Service</h3>
-            <pre>sudo systemctl start robot.service nginx</pre>
+<pre style="margin: 0;">sudo systemctl start robot.service nginx</pre>
+            <p style="margin-top: 15px;">또는 수동 실행:</p>
+<pre style="margin: 0;">./scripts/start_robot.sh</pre>
         </div>
         <div class="card">
             <h3>3. Access Web UI</h3>
-            <pre>http://&lt;ROBOT_IP&gt;:8888</pre>
-            <p style="margin-top:10px;">브라우저에서 로봇 IP의 8888 포트로 접속</p>
+<pre style="margin: 0;">http://&lt;ROBOT_IP&gt;:8888</pre>
+            <p style="margin-top: 15px;">브라우저에서 로봇 IP의 8888 포트로 접속합니다.</p>
         </div>
     </div>
 </section>
 
 <section>
-    <h2>Architecture</h2>
-    <div class="arch">┌─────────────────────────────────────────────────────────────────┐
+    <h2>Web UI Controls</h2>
+    <div class="grid-2">
+        <div>
+            <h3>Control Tabs</h3>
+            <table>
+                <tr><th>Tab</th><th>Function</th></tr>
+                <tr><td><strong>Control</strong></td><td>카메라 + 조이스틱 컨트롤</td></tr>
+                <tr><td><strong>Map</strong></td><td>SLAM 맵핑 / Navigation</td></tr>
+                <tr><td><strong>Clean</strong></td><td>자동 탐색 (청소기 모드)</td></tr>
+                <tr><td><strong>AI</strong></td><td>YOLO 객체 인식</td></tr>
+            </table>
+        </div>
+        <div>
+            <h3>Keyboard Controls</h3>
+            <table>
+                <tr><th>Key</th><th>Action</th></tr>
+                <tr><td><code>W</code></td><td>Forward (전진)</td></tr>
+                <tr><td><code>S</code></td><td>Backward (후진)</td></tr>
+                <tr><td><code>A</code></td><td>Turn Left (좌회전)</td></tr>
+                <tr><td><code>D</code></td><td>Turn Right (우회전)</td></tr>
+                <tr><td><code>Space</code></td><td>Stop (정지)</td></tr>
+            </table>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>System Architecture</h2>
+    <div class="diagram">┌─────────────────────────────────────────────────────────────────┐
 │                    Web Browser (port 8888)                       │
 │  ┌─────────────────────────────────────────────────────────────┐ │
-│  │   [Control]  [Map]  [AI]          Camera / Map Canvas       │ │
+│  │   [Control]  [Map]  [Clean]  [AI]                           │ │
+│  ├─────────────────────────────────────────────────────────────┤ │
+│  │              Camera / Map Canvas (Pan/Zoom)                 │ │
 │  ├─────────────────┬───────────────────────────────────────────┤ │
 │  │     LiDAR       │              Joystick                     │ │
 │  └─────────────────┴───────────────────────────────────────────┘ │
@@ -258,64 +204,77 @@ colcon build --symlink-install</pre>
 │                         Hardware                                 │
 │  Jetson Orin Nano │ IMX219 │ LD19 │ OpenCR │ Dynamixel XL430   │
 └─────────────────────────────────────────────────────────────────┘</div>
-</section>
-
-<section>
-    <h2>Controls</h2>
-    <table>
-        <tr><th>Key</th><th>Action</th><th>Tab</th><th>Function</th></tr>
-        <tr><td><code>W</code></td><td>Forward</td><td><strong>Control</strong></td><td>Camera + Joystick</td></tr>
-        <tr><td><code>S</code></td><td>Backward</td><td><strong>Map</strong></td><td>SLAM / Navigation</td></tr>
-        <tr><td><code>A</code></td><td>Turn Left</td><td><strong>AI</strong></td><td>YOLO Detection</td></tr>
-        <tr><td><code>D</code></td><td>Turn Right</td><td></td><td></td></tr>
-        <tr><td><code>Space</code></td><td>Stop</td><td></td><td></td></tr>
-    </table>
+    <div style="text-align: center;">
+        <a href="architecture.html" class="btn btn-outline">아키텍처 상세 보기</a>
+    </div>
 </section>
 
 <section>
     <h2>Performance</h2>
     <table>
-        <tr><th>Metric</th><th>Value</th></tr>
-        <tr><td>YOLO Detection</td><td><strong>147 FPS</strong> (TensorRT FP16)</td></tr>
-        <tr><td>Camera Stream</td><td>640×360 @ 15fps (MJPEG)</td></tr>
-        <tr><td>LiDAR Scan</td><td>10Hz, 450+ points</td></tr>
-        <tr><td>Map Resolution</td><td>5cm per cell</td></tr>
-        <tr><td>Latency</td><td>~50ms (WebSocket)</td></tr>
+        <tr><th>Metric</th><th>Value</th><th>Description</th></tr>
+        <tr><td>YOLO Detection</td><td><strong>147 FPS</strong></td><td>TensorRT FP16, 7.6ms latency</td></tr>
+        <tr><td>Camera Stream</td><td>640×360 @ 15fps</td><td>Hardware JPEG (nvjpegenc)</td></tr>
+        <tr><td>LiDAR Scan</td><td>10Hz, 450+ points</td><td>360° 범위 스캔</td></tr>
+        <tr><td>Map Resolution</td><td>5cm per cell</td><td>Cartographer 맵 해상도</td></tr>
+        <tr><td>WebSocket Latency</td><td>~50ms</td><td>rosbridge 통신 지연</td></tr>
     </table>
 </section>
 
 <section>
-    <h2>ROS2 Topics</h2>
-    <table>
-        <tr><th>Topic</th><th>Type</th><th>Description</th></tr>
-        <tr><td><code>/cmd_vel</code></td><td>Twist</td><td>Velocity command</td></tr>
-        <tr><td><code>/scan</code></td><td>LaserScan</td><td>LiDAR data</td></tr>
-        <tr><td><code>/odom</code></td><td>Odometry</td><td>Robot odometry</td></tr>
-        <tr><td><code>/map</code></td><td>OccupancyGrid</td><td>SLAM map</td></tr>
-        <tr><td><code>/tf</code></td><td>TFMessage</td><td>Transforms</td></tr>
-        <tr><td><code>/robot/mode</code></td><td>String</td><td>Mode control</td></tr>
-        <tr><td><code>/detections</code></td><td>String</td><td>YOLO detections (JSON)</td></tr>
-    </table>
+    <h2>Documentation</h2>
+    <div class="cards">
+        <div class="card">
+            <h3>📦 Hardware Setup</h3>
+            <p>하드웨어 구성 요소, 연결 방법, 전원 설정에 대한 상세 가이드</p>
+            <a href="hardware.html" class="btn btn-primary" style="margin-top: 10px;">View</a>
+        </div>
+        <div class="card">
+            <h3>🗺️ SLAM Algorithm</h3>
+            <p>Cartographer SLAM 알고리즘 원리, 파라미터 설정, 맵 저장/로드</p>
+            <a href="slam.html" class="btn btn-primary" style="margin-top: 10px;">View</a>
+        </div>
+        <div class="card">
+            <h3>🧭 Navigation</h3>
+            <p>Nav2 네비게이션 스택, 경로 계획, 장애물 회피 알고리즘</p>
+            <a href="navigation.html" class="btn btn-primary" style="margin-top: 10px;">View</a>
+        </div>
+        <div class="card">
+            <h3>🤖 AI Detection</h3>
+            <p>YOLOv8 객체 인식, TensorRT 최적화, 실시간 감지</p>
+            <a href="ai.html" class="btn btn-primary" style="margin-top: 10px;">View</a>
+        </div>
+        <div class="card">
+            <h3>🏗️ Architecture</h3>
+            <p>시스템 아키텍처, ROS2 노드 구조, 토픽/서비스 구성</p>
+            <a href="architecture.html" class="btn btn-primary" style="margin-top: 10px;">View</a>
+        </div>
+    </div>
 </section>
 
 <section>
     <h2>Links</h2>
     <div style="text-align: center;">
-        <a href="https://github.com/hwkim3330/jetson_robot" class="btn">GitHub Repository</a>
-        <a href="https://emanual.robotis.com/docs/en/dxl/x/xl430-w250/" class="btn">Dynamixel Docs</a>
-        <a href="https://developer.nvidia.com/embedded/jetson-orin-nano-developer-kit" class="btn nvidia">Jetson Orin</a>
-        <a href="https://docs.ros.org/en/humble/" class="btn">ROS2 Humble</a>
+        <a href="https://github.com/hwkim3330/jetson_robot" class="btn btn-primary">GitHub Repository</a>
+        <a href="https://emanual.robotis.com/docs/en/dxl/x/xl430-w250/" class="btn btn-outline">Dynamixel Docs</a>
+        <a href="https://developer.nvidia.com/embedded/jetson-orin-nano-developer-kit" class="btn btn-nvidia">Jetson Orin</a>
+        <a href="https://docs.ros.org/en/humble/" class="btn btn-outline">ROS2 Humble</a>
     </div>
 </section>
 
 </div>
 
 <footer>
-    <p><strong>SDV Robot</strong></p>
-    <p>Developed by <a href="https://www.keti.re.kr">KETI</a> (Korea Electronics Technology Institute)</p>
-    <p style="margin-top: 15px; opacity: 0.7;">
-        Powered by NVIDIA Jetson Orin Nano Super
-    </p>
+    <p><strong>SDV Robot</strong> - Software Defined Vehicle</p>
+    <div class="footer-links">
+        <a href="hardware.html">Hardware</a>
+        <a href="slam.html">SLAM</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="ai.html">AI</a>
+        <a href="architecture.html">Architecture</a>
+    </div>
+    <p style="margin-top: 20px;">Developed by <a href="https://www.keti.re.kr">KETI</a> (Korea Electronics Technology Institute)</p>
+    <p style="margin-top: 10px; opacity: 0.7;">Powered by NVIDIA Jetson Orin Nano Super</p>
 </footer>
 
 </body>

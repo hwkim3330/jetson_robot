@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Detection - SDV Robot</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+    <div class="nav-container">
+        <a href="index.html" class="logo">SDV <span>Robot</span></a>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="hardware.html">Hardware</a></li>
+            <li><a href="slam.html">SLAM</a></li>
+            <li><a href="navigation.html">Navigation</a></li>
+            <li><a href="ai.html" class="active">AI Detection</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+        </ul>
+    </div>
+</nav>
+
+<header>
+    <h1>AI Detection</h1>
+    <p class="subtitle">YOLOv8 + TensorRT 실시간 객체 인식</p>
+</header>
+
+<div class="container">
+
+<section>
+    <h2>Overview</h2>
+    <p>SDV Robot은 <strong>YOLOv8</strong>을 <strong>NVIDIA TensorRT</strong>로 최적화하여 실시간 객체 인식을 수행합니다. Jetson Orin Nano의 GPU를 활용해 <strong>147 FPS</strong>의 고속 추론이 가능합니다.</p>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value">147</div>
+            <div class="stat-label">FPS</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">7.6</div>
+            <div class="stat-label">ms Latency</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">80</div>
+            <div class="stat-label">Classes</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">9</div>
+            <div class="stat-label">MB Engine</div>
+        </div>
+    </div>
+
+    <div class="info-box">
+        <strong>YOLO (You Only Look Once)</strong>: 이미지를 한 번만 보고 객체의 위치와 클래스를 동시에 예측하는 실시간 객체 탐지 알고리즘입니다.
+    </div>
+</section>
+
+<section>
+    <h2>YOLOv8 Architecture</h2>
+    <p>YOLOv8은 Ultralytics에서 개발한 최신 버전으로, 높은 정확도와 빠른 추론 속도를 제공합니다.</p>
+
+    <div class="diagram">
+     YOLOv8 Network Architecture
+     ═══════════════════════════════════════════════════════════════════
+
+     Input Image (640×640)
+            │
+            ▼
+     ┌─────────────────────────────────────────────────────────────────┐
+     │                         Backbone (CSPDarknet)                    │
+     │  ┌──────┐   ┌──────┐   ┌──────┐   ┌──────┐   ┌──────┐          │
+     │  │Conv  │ → │C2f   │ → │Conv  │ → │C2f   │ → │SPPF  │          │
+     │  │3×3   │   │Block │   │3×3   │   │Block │   │      │          │
+     │  └──────┘   └──────┘   └──────┘   └──────┘   └──────┘          │
+     │     ↓          ↓          ↓          ↓          ↓               │
+     │   P1/2       P2/4       P3/8      P4/16      P5/32             │
+     └─────────────────────────────────────────────────────────────────┘
+            │           │           │
+            ▼           ▼           ▼
+     ┌─────────────────────────────────────────────────────────────────┐
+     │                           Neck (PANet)                           │
+     │                  Feature Pyramid + Bottom-up                     │
+     │            ┌──────────┐                                         │
+     │            │ Upsample │ ← Concat ← Downsample                   │
+     │            └──────────┘                                         │
+     └─────────────────────────────────────────────────────────────────┘
+            │           │           │
+            ▼           ▼           ▼
+     ┌─────────────────────────────────────────────────────────────────┐
+     │                         Head (Decoupled)                         │
+     │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
+     │  │ Small (P3)  │  │ Medium (P4) │  │ Large (P5)  │              │
+     │  │ 80×80×(4+80)│  │ 40×40×(4+80)│  │ 20×20×(4+80)│              │
+     │  └─────────────┘  └─────────────┘  └─────────────┘              │
+     └─────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+     ┌─────────────────────────────────────────────────────────────────┐
+     │                      Post-processing                             │
+     │              NMS (Non-Maximum Suppression)                       │
+     │                          │                                       │
+     │                          ▼                                       │
+     │              Detections: [x, y, w, h, class, confidence]        │
+     └─────────────────────────────────────────────────────────────────┘
+    </div>
+
+    <h3>주요 컴포넌트</h3>
+    <div class="cards">
+        <div class="card nvidia">
+            <h3>Backbone</h3>
+            <p>특징 추출기</p>
+            <ul>
+                <li>CSPDarknet53 기반</li>
+                <li>C2f (Cross Stage Partial)</li>
+                <li>SPPF (Spatial Pyramid Pooling Fast)</li>
+            </ul>
+        </div>
+        <div class="card nvidia">
+            <h3>Neck</h3>
+            <p>다중 스케일 특징 융합</p>
+            <ul>
+                <li>PANet (Path Aggregation Network)</li>
+                <li>FPN (Feature Pyramid Network)</li>
+                <li>Top-down + Bottom-up</li>
+            </ul>
+        </div>
+        <div class="card nvidia">
+            <h3>Head</h3>
+            <p>예측 헤드</p>
+            <ul>
+                <li>Decoupled Head (분리된 분류/회귀)</li>
+                <li>Anchor-free 방식</li>
+                <li>3개 스케일 출력</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>Object Detection Algorithm</h2>
+
+    <div class="algorithm-box">
+        <h4>YOLO Detection Pipeline</h4>
+        <ol>
+            <li><strong>전처리 (Preprocessing)</strong>
+                <ul>
+                    <li>이미지 리사이즈 (640×640)</li>
+                    <li>정규화 (0-1 스케일링)</li>
+                    <li>BGR → RGB 변환</li>
+                </ul>
+            </li>
+            <li><strong>추론 (Inference)</strong>
+                <ul>
+                    <li>TensorRT 엔진으로 GPU 추론</li>
+                    <li>3개 스케일에서 예측 (80×80, 40×40, 20×20)</li>
+                    <li>각 그리드 셀에서 객체 예측</li>
+                </ul>
+            </li>
+            <li><strong>후처리 (Post-processing)</strong>
+                <ul>
+                    <li>Confidence 임계값 필터링 (>0.5)</li>
+                    <li>NMS로 중복 제거 (IoU >0.45)</li>
+                    <li>바운딩 박스 좌표 변환</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <h3>Bounding Box Prediction</h3>
+    <div class="diagram">
+     Grid-based Detection
+     ═══════════════════════════════════════════════════════════════════
+
+     ┌───┬───┬───┬───┬───┬───┬───┬───┐
+     │   │   │   │   │   │   │   │   │
+     ├───┼───┼───┼───┼───┼───┼───┼───┤
+     │   │   │   │ ● │ ● │   │   │   │  ● = 그리드 셀 (예측 담당)
+     ├───┼───┼───┼───┼───┼───┼───┼───┤
+     │   │   │ ┌─┼───┼───┼─┐ │   │   │
+     ├───┼───┼─┤ │   │   │ ├─┼───┼───┤  ┌───────────┐
+     │   │   │ │ │ 🐕│   │ │ │   │   │  │ Detected  │
+     ├───┼───┼─┤ │   │   │ ├─┼───┼───┤  │  Object   │
+     │   │   │ └─┼───┼───┼─┘ │   │   │  └───────────┘
+     ├───┼───┼───┼───┼───┼───┼───┼───┤
+     │   │   │   │   │   │   │   │   │
+     └───┴───┴───┴───┴───┴───┴───┴───┘
+
+     각 그리드 셀은 예측:
+       - (x, y, w, h) : 바운딩 박스 좌표
+       - confidence   : 객체 존재 확률
+       - class[80]    : 클래스별 확률
+    </div>
+
+    <h3>Non-Maximum Suppression (NMS)</h3>
+    <div class="algorithm-box">
+        <h4>NMS Algorithm</h4>
+        <p>중복된 바운딩 박스를 제거하여 최종 검출 결과를 얻습니다.</p>
+        <ol>
+            <li>모든 박스를 confidence 기준 내림차순 정렬</li>
+            <li>가장 높은 confidence 박스 선택</li>
+            <li>선택된 박스와 IoU > 0.45인 박스들 제거</li>
+            <li>남은 박스 중 다음으로 높은 confidence 박스 선택</li>
+            <li>모든 박스가 처리될 때까지 반복</li>
+        </ol>
+        <div class="highlight">
+            <strong>IoU (Intersection over Union)</strong> = 교집합 면적 / 합집합 면적
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>TensorRT Optimization</h2>
+    <p><strong>NVIDIA TensorRT</strong>는 딥러닝 추론을 최적화하는 SDK로, Jetson에서 최대 성능을 발휘합니다.</p>
+
+    <div class="cards">
+        <div class="card nvidia">
+            <h3>Layer Fusion</h3>
+            <p>레이어 결합</p>
+            <ul>
+                <li>Conv + BatchNorm + ReLU 통합</li>
+                <li>메모리 접근 최소화</li>
+                <li>커널 호출 감소</li>
+            </ul>
+        </div>
+        <div class="card nvidia">
+            <h3>Precision Calibration</h3>
+            <p>정밀도 최적화</p>
+            <ul>
+                <li>FP32 → FP16 변환</li>
+                <li>2배 빠른 연산</li>
+                <li>정확도 유지</li>
+            </ul>
+        </div>
+        <div class="card nvidia">
+            <h3>Kernel Auto-tuning</h3>
+            <p>커널 최적화</p>
+            <ul>
+                <li>하드웨어별 최적 커널 선택</li>
+                <li>GPU 사용률 극대화</li>
+                <li>메모리 대역폭 최적화</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3>TensorRT 변환 과정</h3>
+    <div class="flow">
+        <div class="flow-item">PyTorch Model<br>(.pt)</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">ONNX<br>(.onnx)</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item nvidia">TensorRT Engine<br>(.engine)</div>
+    </div>
+
+<pre>
+# YOLOv8 TensorRT 변환 명령어
+yolo export model=yolov8n.pt format=engine device=0 half=True
+</pre>
+
+    <h3>성능 비교</h3>
+    <table>
+        <tr><th>Framework</th><th>Precision</th><th>FPS</th><th>Latency</th></tr>
+        <tr><td>PyTorch</td><td>FP32</td><td>~25</td><td>~40ms</td></tr>
+        <tr><td>TensorRT</td><td>FP32</td><td>~80</td><td>~12ms</td></tr>
+        <tr><td><strong>TensorRT</strong></td><td><strong>FP16</strong></td><td><strong>147</strong></td><td><strong>7.6ms</strong></td></tr>
+    </table>
+
+    <div class="success-box">
+        <strong>성능 향상</strong>: TensorRT FP16 최적화로 PyTorch 대비 약 6배 빠른 추론 속도를 달성했습니다.
+    </div>
+</section>
+
+<section>
+    <h2>Detected Classes (COCO Dataset)</h2>
+    <p>YOLOv8은 COCO 데이터셋의 80개 클래스를 인식합니다.</p>
+
+    <div class="grid-3">
+        <div>
+            <h4>사람 & 동물</h4>
+            <ul>
+                <li>person (사람)</li>
+                <li>bicycle, car, motorcycle</li>
+                <li>airplane, bus, train</li>
+                <li>dog, cat, horse</li>
+                <li>bird, cow, sheep</li>
+            </ul>
+        </div>
+        <div>
+            <h4>생활용품</h4>
+            <ul>
+                <li>chair, couch, bed</li>
+                <li>dining table</li>
+                <li>toilet, tv, laptop</li>
+                <li>cell phone, keyboard</li>
+                <li>refrigerator, oven</li>
+            </ul>
+        </div>
+        <div>
+            <h4>음식 & 기타</h4>
+            <ul>
+                <li>bottle, cup, fork</li>
+                <li>knife, spoon, bowl</li>
+                <li>banana, apple, orange</li>
+                <li>pizza, cake, donut</li>
+                <li>backpack, umbrella</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="warning-box">
+        <strong>안전 기능</strong>: "person" 클래스가 감지되면 로봇이 자동으로 정지하여 충돌을 방지합니다.
+    </div>
+</section>
+
+<section>
+    <h2>Implementation</h2>
+
+    <h3>Detection Pipeline Code</h3>
+<pre>
+# yolo_detector.py 핵심 로직
+
+class YoloDetector:
+    def __init__(self):
+        # TensorRT 엔진 로드
+        self.model = YOLO('yolov8n.engine')
+
+    def detect(self, frame):
+        # 추론 실행
+        results = self.model(frame, conf=0.5, iou=0.45)
+
+        detections = []
+        for r in results:
+            for box in r.boxes:
+                x1, y1, x2, y2 = box.xyxy[0]
+                confidence = box.conf[0]
+                class_id = int(box.cls[0])
+                class_name = self.model.names[class_id]
+
+                detections.append({
+                    'class': class_name,
+                    'confidence': float(confidence),
+                    'bbox': [int(x1), int(y1), int(x2), int(y2)]
+                })
+
+                # 사람 감지 시 정지 명령
+                if class_name == 'person':
+                    self.stop_robot()
+
+        return detections
+</pre>
+
+    <h3>웹 UI 표시</h3>
+    <div class="diagram">
+     Web UI Detection Display
+     ═══════════════════════════════════════════════════════════════════
+
+     ┌─────────────────────────────────────────────────────────────────┐
+     │  [Control]  [Map]  [Clean]  [AI ●]                              │
+     ├─────────────────────────────────────────────────────────────────┤
+     │                                                                 │
+     │    ┌─────────────────────────────────────────────────────┐     │
+     │    │                                                     │     │
+     │    │    ┌──────────────┐                                 │     │
+     │    │    │ 🧑 person    │ ← 바운딩 박스                   │     │
+     │    │    │   95%        │   + 클래스명                    │     │
+     │    │    └──────────────┘   + 신뢰도                      │     │
+     │    │                                                     │     │
+     │    │                    ┌─────────────┐                  │     │
+     │    │                    │ 🪑 chair   │                  │     │
+     │    │                    │   87%       │                  │     │
+     │    │                    └─────────────┘                  │     │
+     │    │                                                     │     │
+     │    └─────────────────────────────────────────────────────┘     │
+     │                                                                 │
+     │    FPS: 147 | Detections: 2 | person, chair                    │
+     │                                                                 │
+     └─────────────────────────────────────────────────────────────────┘
+    </div>
+</section>
+
+<section>
+    <h2>ROS2 Topics</h2>
+
+    <table>
+        <tr><th>Topic</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>/camera/image_raw</code></td><td>Image</td><td>카메라 입력 이미지</td></tr>
+        <tr><td><code>/detections</code></td><td>String (JSON)</td><td>검출 결과</td></tr>
+        <tr><td><code>/person_detected</code></td><td>Bool</td><td>사람 감지 플래그</td></tr>
+        <tr><td><code>/robot/ai_mode</code></td><td>String</td><td>AI 모드 제어 (yolo/off)</td></tr>
+    </table>
+
+    <h3>Detection Message Format</h3>
+<pre>
+{
+    "timestamp": 1703001234.567,
+    "frame_id": 12345,
+    "fps": 147.2,
+    "detections": [
+        {
+            "class": "person",
+            "confidence": 0.95,
+            "bbox": [100, 50, 300, 400]
+        },
+        {
+            "class": "chair",
+            "confidence": 0.87,
+            "bbox": [400, 200, 550, 350]
+        }
+    ]
+}
+</pre>
+</section>
+
+<section>
+    <h2>Performance Metrics</h2>
+
+    <table>
+        <tr><th>Metric</th><th>Value</th><th>Notes</th></tr>
+        <tr><td>Model</td><td>YOLOv8n</td><td>Nano version (fastest)</td></tr>
+        <tr><td>Input Size</td><td>640 × 640</td><td>Square input</td></tr>
+        <tr><td>Engine Size</td><td>9 MB</td><td>TensorRT FP16</td></tr>
+        <tr><td>Throughput</td><td>147 FPS</td><td>Jetson Orin Nano</td></tr>
+        <tr><td>Latency (mean)</td><td>7.6 ms</td><td>End-to-end</td></tr>
+        <tr><td>GPU Compute</td><td>6.8 ms</td><td>GPU only</td></tr>
+        <tr><td>CPU Time</td><td>0.8 ms</td><td>Pre/post processing</td></tr>
+        <tr><td>mAP@0.5</td><td>37.3%</td><td>COCO val2017</td></tr>
+    </table>
+
+    <h3>Resource Usage</h3>
+    <div class="grid-2">
+        <div class="card nvidia">
+            <h3>GPU</h3>
+            <ul>
+                <li>Usage: ~60%</li>
+                <li>Memory: ~800 MB</li>
+                <li>Power Mode: 15W</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3>CPU</h3>
+            <ul>
+                <li>Usage: ~20%</li>
+                <li>Cores: 2/6 active</li>
+                <li>Pre/post processing</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>Troubleshooting</h2>
+
+    <table>
+        <tr><th>Problem</th><th>Cause</th><th>Solution</th></tr>
+        <tr><td>낮은 FPS</td><td>잘못된 엔진 파일</td><td>TensorRT 엔진 재빌드</td></tr>
+        <tr><td>감지 안됨</td><td>카메라 문제</td><td>카메라 연결 확인</td></tr>
+        <tr><td>오탐지 많음</td><td>낮은 confidence</td><td>confidence 임계값 상향</td></tr>
+        <tr><td>메모리 부족</td><td>엔진 크기</td><td>더 작은 모델 사용 (yolov8n)</td></tr>
+        <tr><td>GPU 오류</td><td>CUDA 버전</td><td>JetPack/TensorRT 버전 확인</td></tr>
+    </table>
+</section>
+
+</div>
+
+<footer>
+    <p><strong>SDV Robot</strong> - AI Detection Documentation</p>
+    <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="hardware.html">Hardware</a>
+        <a href="slam.html">SLAM</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="architecture.html">Architecture</a>
+    </div>
+    <p style="margin-top: 20px;">Developed by <a href="https://www.keti.re.kr">KETI</a></p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Architecture - SDV Robot</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+    <div class="nav-container">
+        <a href="index.html" class="logo">SDV <span>Robot</span></a>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="hardware.html">Hardware</a></li>
+            <li><a href="slam.html">SLAM</a></li>
+            <li><a href="navigation.html">Navigation</a></li>
+            <li><a href="ai.html">AI Detection</a></li>
+            <li><a href="architecture.html" class="active">Architecture</a></li>
+        </ul>
+    </div>
+</nav>
+
+<header>
+    <h1>System Architecture</h1>
+    <p class="subtitle">SDV Robot 시스템 구조 및 통신 아키텍처</p>
+</header>
+
+<div class="container">
+
+<section>
+    <h2>Overall Architecture</h2>
+    <div class="diagram">
+     SDV Robot System Architecture
+     ═══════════════════════════════════════════════════════════════════════════════════
+
+     ┌───────────────────────────────────────────────────────────────────────────────────┐
+     │                              USER INTERFACE LAYER                                  │
+     │  ┌─────────────────────────────────────────────────────────────────────────────┐  │
+     │  │                        Web Browser (port 8888)                               │  │
+     │  │   ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐                       │  │
+     │  │   │ Control  │ │   Map    │ │  Clean   │ │    AI    │  ← Tabs               │  │
+     │  │   └──────────┘ └──────────┘ └──────────┘ └──────────┘                       │  │
+     │  │   ┌─────────────────────────────────────────────────────────────────────┐   │  │
+     │  │   │                     Camera / Map Canvas                              │   │  │
+     │  │   │                     (Real-time Display)                              │   │  │
+     │  │   ├──────────────────────┬──────────────────────────────────────────────┤   │  │
+     │  │   │    LiDAR Viewer      │           Virtual Joystick                    │   │  │
+     │  │   └──────────────────────┴──────────────────────────────────────────────┘   │  │
+     │  └─────────────────────────────────────────────────────────────────────────────┘  │
+     └───────────────────────────────────────────────────────────────────────────────────┘
+                          │                              │
+                          │ HTTP (8888)                  │ WebSocket (9090)
+                          │ MJPEG (8080)                 │
+                          ▼                              ▼
+     ┌───────────────────────────────────────────────────────────────────────────────────┐
+     │                              COMMUNICATION LAYER                                   │
+     │  ┌──────────────────────┐  ┌──────────────────────┐  ┌────────────────────────┐  │
+     │  │      nginx           │  │    camera_node       │  │     rosbridge_server   │  │
+     │  │   (Static Files)     │  │   (MJPEG Stream)     │  │   (WebSocket/ROS2)     │  │
+     │  │      :8888           │  │       :8080          │  │        :9090           │  │
+     │  └──────────────────────┘  └──────────────────────┘  └────────────────────────┘  │
+     └───────────────────────────────────────────────────────────────────────────────────┘
+                                             │
+                                             │ ROS2 Topics/Services
+                                             ▼
+     ┌───────────────────────────────────────────────────────────────────────────────────┐
+     │                              ROS2 APPLICATION LAYER                                │
+     │                                                                                    │
+     │  ┌────────────────────────────────────────────────────────────────────────────┐   │
+     │  │                           mode_controller                                   │   │
+     │  │              (모드 관리: manual/slam/nav/explore/yolo)                      │   │
+     │  └────────────────────────────────────────────────────────────────────────────┘   │
+     │            │              │              │              │              │          │
+     │            ▼              ▼              ▼              ▼              ▼          │
+     │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌────────┐  │
+     │  │ robot_driver │ │ cartographer │ │    Nav2      │ │auto_explore  │ │  yolo  │  │
+     │  │  (Dynamixel) │ │   (SLAM)     │ │ (Navigation) │ │ (청소기모드) │ │detector│  │
+     │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘ └────────┘  │
+     │                                                                                    │
+     └───────────────────────────────────────────────────────────────────────────────────┘
+                                             │
+                                             │ ROS2 Topics
+                                             ▼
+     ┌───────────────────────────────────────────────────────────────────────────────────┐
+     │                              DRIVER LAYER                                          │
+     │  ┌──────────────────────┐  ┌──────────────────────┐  ┌────────────────────────┐  │
+     │  │   turtlebot3_node    │  │    ldlidar_node      │  │     camera_node        │  │
+     │  │   (OpenCR Driver)    │  │   (LD19 Driver)      │  │   (GStreamer/CSI)      │  │
+     │  │                      │  │                      │  │                        │  │
+     │  │   /cmd_vel → motors  │  │   /scan (LaserScan)  │  │   /camera/image_raw    │  │
+     │  │   /odom ← encoders   │  │                      │  │                        │  │
+     │  │   /imu ← IMU         │  │                      │  │                        │  │
+     │  └──────────────────────┘  └──────────────────────┘  └────────────────────────┘  │
+     └───────────────────────────────────────────────────────────────────────────────────┘
+                          │                    │                    │
+                          │ USB/Serial         │ USB/Serial         │ MIPI CSI-2
+                          ▼                    ▼                    ▼
+     ┌───────────────────────────────────────────────────────────────────────────────────┐
+     │                              HARDWARE LAYER                                        │
+     │  ┌──────────────────────┐  ┌──────────────────────┐  ┌────────────────────────┐  │
+     │  │       OpenCR         │  │       LD19           │  │       IMX219           │  │
+     │  │  ┌─────┐  ┌─────┐    │  │      LiDAR          │  │       Camera           │  │
+     │  │  │XL430│  │XL430│    │  │       360°          │  │       160° FOV         │  │
+     │  │  │ L   │  │ R   │    │  │      0.1-12m        │  │       640×360          │  │
+     │  │  └─────┘  └─────┘    │  │                      │  │                        │  │
+     │  └──────────────────────┘  └──────────────────────┘  └────────────────────────┘  │
+     │                                                                                    │
+     │  ┌──────────────────────────────────────────────────────────────────────────────┐ │
+     │  │                      NVIDIA Jetson Orin Nano Super                            │ │
+     │  │                   8GB LPDDR5 | 67 TOPS | 6-core ARM                          │ │
+     │  └──────────────────────────────────────────────────────────────────────────────┘ │
+     └───────────────────────────────────────────────────────────────────────────────────┘
+    </div>
+</section>
+
+<section>
+    <h2>ROS2 Node Graph</h2>
+    <div class="diagram">
+     ROS2 Node Communication
+     ═══════════════════════════════════════════════════════════════════════════════════
+
+                                    ┌──────────────────┐
+                                    │   rosbridge      │
+                                    │   _server        │◄─── WebSocket (Web UI)
+                                    └────────┬─────────┘
+                                             │
+              ┌──────────────────────────────┼──────────────────────────────┐
+              │                              │                              │
+              ▼                              ▼                              ▼
+     ┌─────────────────┐          ┌─────────────────┐          ┌─────────────────┐
+     │ mode_controller │          │   camera_node   │          │  yolo_detector  │
+     │                 │          │                 │          │                 │
+     │ /robot/mode     │          │ MJPEG stream    │          │ /detections     │
+     │ /robot/ai_mode  │          │ :8080           │          │ /person_detected│
+     └────────┬────────┘          └─────────────────┘          └────────┬────────┘
+              │                                                         │
+              │ Mode switching                                          │
+              ▼                                                         ▼
+     ┌─────────────────────────────────────────────────────────────────────────────┐
+     │                           Topic Bus (DDS)                                    │
+     │  /cmd_vel │ /odom │ /scan │ /map │ /tf │ /goal_pose │ /initialpose          │
+     └─────────────────────────────────────────────────────────────────────────────┘
+              │              │              │              │
+              ▼              ▼              ▼              ▼
+     ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+     │turtlebot3    │ │ ldlidar      │ │ cartographer │ │    Nav2      │
+     │ _node        │ │ _node        │ │ _node        │ │ stack        │
+     │              │ │              │ │              │ │              │
+     │ /cmd_vel →   │ │ /scan →      │ │ /map →       │ │ /plan →      │
+     │ /odom ←      │ │              │ │ /tf →        │ │ /cmd_vel →   │
+     │ /imu ←       │ │              │ │              │ │              │
+     └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
+              │
+              ▼
+     ┌──────────────────────┐
+     │      OpenCR 1.0      │
+     │  ┌────────┬────────┐ │
+     │  │Dynamixel│Dynamixel│ │
+     │  │  ID:1  │  ID:2  │ │
+     │  └────────┴────────┘ │
+     └──────────────────────┘
+    </div>
+</section>
+
+<section>
+    <h2>Operating Modes</h2>
+    <p>SDV Robot은 mode_controller 노드가 5가지 동작 모드를 관리합니다.</p>
+
+    <div class="cards">
+        <div class="card primary">
+            <h3>Manual Mode</h3>
+            <p>기본 수동 조작 모드</p>
+            <ul>
+                <li>조이스틱/키보드로 제어</li>
+                <li>/cmd_vel 직접 발행</li>
+                <li>모든 자율 기능 비활성화</li>
+            </ul>
+        </div>
+        <div class="card ros">
+            <h3>SLAM Mode</h3>
+            <p>Cartographer SLAM 모드</p>
+            <ul>
+                <li>실시간 맵 생성</li>
+                <li>수동 조작으로 탐색</li>
+                <li>맵 저장 가능</li>
+            </ul>
+        </div>
+        <div class="card ros">
+            <h3>Navigation Mode</h3>
+            <p>Nav2 자율 주행 모드</p>
+            <ul>
+                <li>저장된 맵 로드</li>
+                <li>AMCL 위치 추정</li>
+                <li>목표점 자율 이동</li>
+            </ul>
+        </div>
+        <div class="card ros">
+            <h3>Explore Mode</h3>
+            <p>자동 탐색 (청소기) 모드</p>
+            <ul>
+                <li>SLAM + 자동 탐색</li>
+                <li>Frontier 기반 탐색</li>
+                <li>장애물 회피</li>
+            </ul>
+        </div>
+        <div class="card nvidia">
+            <h3>YOLO Mode</h3>
+            <p>AI 객체 인식 모드</p>
+            <ul>
+                <li>실시간 객체 감지</li>
+                <li>사람 감지 시 정지</li>
+                <li>다른 모드와 병행 가능</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3>Mode State Diagram</h3>
+    <div class="diagram">
+     Mode Transitions
+     ═══════════════════════════════════════════════════════════════════
+
+                              /robot/mode="manual"
+                                      │
+                                      ▼
+                              ┌──────────────┐
+               ┌──────────────│    MANUAL    │──────────────┐
+               │              └──────────────┘              │
+               │                     │                      │
+     "slam"    │                     │ "nav"                │ "explore"
+               ▼                     ▼                      ▼
+        ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+        │     SLAM     │      │  NAVIGATION  │      │   EXPLORE    │
+        │              │      │              │      │              │
+        │ cartographer │      │ Nav2 + AMCL  │      │ SLAM + Auto  │
+        │   + manual   │      │              │      │   Frontier   │
+        └──────────────┘      └──────────────┘      └──────────────┘
+               │                     │                      │
+               └─────────────────────┼──────────────────────┘
+                                     │
+                          "manual" (언제든 복귀)
+                                     │
+                                     ▼
+                              ┌──────────────┐
+                              │    MANUAL    │
+                              └──────────────┘
+
+     * YOLO Mode는 독립적으로 켜고 끌 수 있음 (/robot/ai_mode)
+    </div>
+</section>
+
+<section>
+    <h2>ROS2 Topics</h2>
+
+    <h3>Core Topics</h3>
+    <table>
+        <tr><th>Topic</th><th>Type</th><th>Publisher</th><th>Subscriber</th></tr>
+        <tr><td><code>/cmd_vel</code></td><td>Twist</td><td>Web UI, Nav2</td><td>turtlebot3_node</td></tr>
+        <tr><td><code>/odom</code></td><td>Odometry</td><td>turtlebot3_node</td><td>Cartographer, Nav2</td></tr>
+        <tr><td><code>/scan</code></td><td>LaserScan</td><td>ldlidar_node</td><td>Cartographer, Nav2</td></tr>
+        <tr><td><code>/map</code></td><td>OccupancyGrid</td><td>Cartographer</td><td>Web UI, Nav2</td></tr>
+        <tr><td><code>/tf</code></td><td>TFMessage</td><td>Multiple</td><td>Multiple</td></tr>
+    </table>
+
+    <h3>Control Topics</h3>
+    <table>
+        <tr><th>Topic</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>/robot/mode</code></td><td>String</td><td>모드 전환 (manual/slam/nav/explore)</td></tr>
+        <tr><td><code>/robot/ai_mode</code></td><td>String</td><td>AI 모드 (yolo/off)</td></tr>
+        <tr><td><code>/robot/save_map</code></td><td>String</td><td>맵 저장 명령 (slot 번호)</td></tr>
+        <tr><td><code>/goal_pose</code></td><td>PoseStamped</td><td>Navigation 목표 위치</td></tr>
+        <tr><td><code>/initialpose</code></td><td>PoseWithCovarianceStamped</td><td>초기 위치 설정</td></tr>
+    </table>
+
+    <h3>AI Topics</h3>
+    <table>
+        <tr><th>Topic</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>/detections</code></td><td>String (JSON)</td><td>YOLO 검출 결과</td></tr>
+        <tr><td><code>/person_detected</code></td><td>Bool</td><td>사람 감지 플래그</td></tr>
+        <tr><td><code>/camera/image_raw</code></td><td>Image</td><td>카메라 원본 이미지</td></tr>
+        <tr><td><code>/camera/image_raw/compressed</code></td><td>CompressedImage</td><td>압축 이미지</td></tr>
+    </table>
+</section>
+
+<section>
+    <h2>Package Structure</h2>
+    <div class="diagram">
+     ros2_ws/
+     ├── src/
+     │   ├── robot_bringup/              # Launch 파일
+     │   │   ├── launch/
+     │   │   │   └── robot.launch.py     # 메인 런치 파일
+     │   │   └── config/
+     │   │       └── params.yaml         # 파라미터 설정
+     │   │
+     │   ├── robot_driver/               # 하드웨어 드라이버
+     │   │   ├── scripts/
+     │   │   │   └── turtlebot3_node.py  # OpenCR/Dynamixel 드라이버
+     │   │   └── config/
+     │   │       └── motor_params.yaml
+     │   │
+     │   ├── robot_description/          # URDF 모델
+     │   │   ├── urdf/
+     │   │   │   └── robot.urdf.xacro    # 로봇 모델 정의
+     │   │   └── meshes/                 # 3D 메시 파일
+     │   │
+     │   ├── robot_web/                  # 웹 인터페이스
+     │   │   ├── www/
+     │   │   │   ├── index.html          # 메인 웹 UI
+     │   │   │   ├── style.css           # 스타일
+     │   │   │   └── script.js           # JavaScript
+     │   │   └── scripts/
+     │   │       └── camera_node.py      # MJPEG 스트리밍
+     │   │
+     │   ├── robot_ai/                   # AI 기능
+     │   │   ├── scripts/
+     │   │   │   ├── yolo_detector.py    # YOLO 객체 인식
+     │   │   │   └── mode_controller.py  # 모드 관리
+     │   │   └── models/
+     │   │       └── yolov8n.engine      # TensorRT 엔진
+     │   │
+     │   ├── robot_slam/                 # SLAM 설정
+     │   │   ├── launch/
+     │   │   │   └── cartographer.launch.py
+     │   │   └── config/
+     │   │       └── cartographer.lua    # Cartographer 설정
+     │   │
+     │   ├── robot_navigation/           # Navigation 설정
+     │   │   ├── launch/
+     │   │   │   └── navigation.launch.py
+     │   │   └── params/
+     │   │       └── nav2_params.yaml    # Nav2 파라미터
+     │   │
+     │   └── ldlidar_stl_ros2/           # LiDAR 드라이버
+     │       └── launch/
+     │           └── ld19.launch.py
+     │
+     ├── maps/                           # 저장된 맵
+     │   ├── map_slot_1.pgm
+     │   ├── map_slot_1.yaml
+     │   └── ...
+     │
+     ├── scripts/                        # 스크립트
+     │   ├── start_robot.sh              # 시작 스크립트
+     │   └── stop_robot.sh               # 정지 스크립트
+     │
+     └── docs/                           # 문서
+         ├── index.html
+         ├── hardware.html
+         ├── slam.html
+         ├── navigation.html
+         ├── ai.html
+         └── architecture.html
+    </div>
+</section>
+
+<section>
+    <h2>Network Ports</h2>
+    <table>
+        <tr><th>Port</th><th>Protocol</th><th>Service</th><th>Description</th></tr>
+        <tr><td>8888</td><td>HTTP</td><td>nginx</td><td>웹 UI 정적 파일 서빙</td></tr>
+        <tr><td>8080</td><td>HTTP</td><td>camera_node</td><td>MJPEG 카메라 스트리밍</td></tr>
+        <tr><td>9090</td><td>WebSocket</td><td>rosbridge</td><td>ROS2 토픽 브릿지</td></tr>
+    </table>
+
+    <h3>Data Flow</h3>
+    <div class="diagram">
+     Network Data Flow
+     ═══════════════════════════════════════════════════════════════════
+
+     Web Browser                        Jetson Orin Nano
+     ═══════════                        ════════════════
+         │
+         │──── HTTP GET :8888 ────────────► nginx
+         │                                   (index.html)
+         │
+         │──── HTTP GET :8080 ────────────► camera_node
+         │     (MJPEG stream)                (GStreamer)
+         │◄─── multipart/x-mixed-replace ───┘
+         │
+         │──── WebSocket :9090 ───────────► rosbridge_server
+         │                                       │
+         │     ┌── Subscribe /scan ──────────────┤
+         │     ├── Subscribe /map ───────────────┤
+         │     ├── Subscribe /odom ──────────────┤
+         │     ├── Subscribe /tf ────────────────┤
+         │     └── Publish /cmd_vel ─────────────┤
+         │                                       │
+         │◄──────── JSON messages ───────────────┘
+         │
+    </div>
+</section>
+
+<section>
+    <h2>Launch Sequence</h2>
+    <div class="timeline">
+        <div class="timeline-item">
+            <h4>1. Hardware Drivers</h4>
+            <p>turtlebot3_node, ldlidar_node 시작</p>
+        </div>
+        <div class="timeline-item">
+            <h4>2. TF Publishers</h4>
+            <p>robot_state_publisher (URDF → TF)</p>
+        </div>
+        <div class="timeline-item">
+            <h4>3. Camera Node</h4>
+            <p>GStreamer 파이프라인, MJPEG 서버</p>
+        </div>
+        <div class="timeline-item">
+            <h4>4. ROS Bridge</h4>
+            <p>rosbridge_server (WebSocket)</p>
+        </div>
+        <div class="timeline-item">
+            <h4>5. Mode Controller</h4>
+            <p>모드 관리 노드 시작</p>
+        </div>
+        <div class="timeline-item">
+            <h4>6. YOLO Detector</h4>
+            <p>TensorRT 엔진 로드, 추론 대기</p>
+        </div>
+    </div>
+
+    <h3>Launch Command</h3>
+<pre>
+# 전체 시스템 시작
+ros2 launch robot_bringup robot.launch.py
+
+# 또는 systemd 서비스
+sudo systemctl start robot.service
+</pre>
+</section>
+
+<section>
+    <h2>Systemd Service</h2>
+
+    <h3>Service Configuration</h3>
+<pre>
+# /etc/systemd/system/robot.service
+
+[Unit]
+Description=SDV Robot Service
+After=network.target
+
+[Service]
+Type=simple
+User=nvidia
+WorkingDirectory=/home/nvidia/ros2_ws
+ExecStart=/home/nvidia/ros2_ws/scripts/start_robot.sh
+ExecStop=/home/nvidia/ros2_ws/scripts/stop_robot.sh
+Restart=on-failure
+RestartSec=10
+Environment="HOME=/home/nvidia"
+Environment="USER=nvidia"
+
+[Install]
+WantedBy=multi-user.target
+</pre>
+
+    <h3>Service Commands</h3>
+    <table>
+        <tr><th>Command</th><th>Description</th></tr>
+        <tr><td><code>sudo systemctl start robot.service</code></td><td>서비스 시작</td></tr>
+        <tr><td><code>sudo systemctl stop robot.service</code></td><td>서비스 정지</td></tr>
+        <tr><td><code>sudo systemctl restart robot.service</code></td><td>서비스 재시작</td></tr>
+        <tr><td><code>sudo systemctl status robot.service</code></td><td>서비스 상태 확인</td></tr>
+        <tr><td><code>journalctl -u robot.service -f</code></td><td>로그 실시간 확인</td></tr>
+    </table>
+</section>
+
+<section>
+    <h2>Performance Optimization</h2>
+
+    <div class="cards">
+        <div class="card nvidia">
+            <h3>GPU Optimization</h3>
+            <ul>
+                <li>TensorRT FP16 추론</li>
+                <li>CUDA 스트림 최적화</li>
+                <li>배치 처리</li>
+                <li>메모리 프리페치</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3>CPU Optimization</h3>
+            <ul>
+                <li>ROS2 Executor 튜닝</li>
+                <li>토픽 QoS 설정</li>
+                <li>불필요한 노드 비활성화</li>
+                <li>콜백 그룹 분리</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3>Network Optimization</h3>
+            <ul>
+                <li>MJPEG 압축률 조정</li>
+                <li>WebSocket 버퍼링</li>
+                <li>토픽 주파수 제한</li>
+                <li>DDS QoS 프로파일</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3>Power Modes</h3>
+    <table>
+        <tr><th>Mode</th><th>Power</th><th>Performance</th><th>Use Case</th></tr>
+        <tr><td>15W</td><td>15W</td><td>최대</td><td>YOLO + Navigation</td></tr>
+        <tr><td>10W</td><td>10W</td><td>중간</td><td>일반 동작</td></tr>
+        <tr><td>7W</td><td>7W</td><td>절약</td><td>배터리 절약</td></tr>
+    </table>
+
+<pre>
+# Power mode 설정
+sudo nvpmodel -m 0  # 15W (MAX)
+sudo nvpmodel -m 1  # 10W
+sudo nvpmodel -m 2  # 7W
+
+# 현재 모드 확인
+sudo nvpmodel -q
+</pre>
+</section>
+
+</div>
+
+<footer>
+    <p><strong>SDV Robot</strong> - Architecture Documentation</p>
+    <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="hardware.html">Hardware</a>
+        <a href="slam.html">SLAM</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="ai.html">AI</a>
+    </div>
+    <p style="margin-top: 20px;">Developed by <a href="https://www.keti.re.kr">KETI</a></p>
+</footer>
+
+</body>
+</html>

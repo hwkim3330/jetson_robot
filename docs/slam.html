@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLAM Algorithm - SDV Robot</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+    <div class="nav-container">
+        <a href="index.html" class="logo">SDV <span>Robot</span></a>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="hardware.html">Hardware</a></li>
+            <li><a href="slam.html" class="active">SLAM</a></li>
+            <li><a href="navigation.html">Navigation</a></li>
+            <li><a href="ai.html">AI Detection</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+        </ul>
+    </div>
+</nav>
+
+<header>
+    <h1>SLAM Algorithm</h1>
+    <p class="subtitle">Simultaneous Localization and Mapping - 동시 위치 추정 및 맵핑</p>
+</header>
+
+<div class="container">
+
+<section>
+    <h2>SLAM이란?</h2>
+    <p><strong>SLAM (Simultaneous Localization and Mapping)</strong>은 로봇이 미지의 환경에서 자신의 위치를 추정하면서 동시에 환경 지도를 생성하는 기술입니다. 이는 자율주행의 핵심 기술로, "닭이 먼저냐 달걀이 먼저냐" 문제를 해결합니다.</p>
+
+    <div class="info-box">
+        <strong>핵심 문제</strong>: 정확한 맵을 만들려면 로봇의 위치를 알아야 하고, 정확한 위치를 알려면 맵이 필요합니다. SLAM은 이 두 가지를 동시에 해결합니다.
+    </div>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value">5cm</div>
+            <div class="stat-label">맵 해상도</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">10Hz</div>
+            <div class="stat-label">스캔 속도</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">12m</div>
+            <div class="stat-label">최대 거리</div>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>Cartographer SLAM</h2>
+    <p>SDV Robot은 Google의 <strong>Cartographer</strong>를 SLAM 엔진으로 사용합니다. Cartographer는 그래프 기반 SLAM으로, 실시간 루프 클로저 검출과 전역 최적화를 지원합니다.</p>
+
+    <div class="cards">
+        <div class="card ros">
+            <h3>Local SLAM</h3>
+            <p>실시간 로컬 맵 생성</p>
+            <ul>
+                <li>스캔 매칭 (Scan Matching)</li>
+                <li>서브맵 생성</li>
+                <li>모션 필터링</li>
+            </ul>
+        </div>
+        <div class="card ros">
+            <h3>Global SLAM</h3>
+            <p>전역 맵 최적화</p>
+            <ul>
+                <li>루프 클로저 검출</li>
+                <li>포즈 그래프 최적화</li>
+                <li>맵 정합</li>
+            </ul>
+        </div>
+        <div class="card ros">
+            <h3>Output</h3>
+            <p>결과물</p>
+            <ul>
+                <li>Occupancy Grid Map</li>
+                <li>TF Transform (map→odom)</li>
+                <li>Robot Trajectory</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>알고리즘 상세</h2>
+
+    <h3>1. 스캔 매칭 (Scan Matching)</h3>
+    <div class="algorithm-box">
+        <h4>Correlative Scan Matching</h4>
+        <p>새로운 LiDAR 스캔을 기존 서브맵에 정렬하여 로봇의 상대적 이동을 추정합니다.</p>
+        <ol>
+            <li><strong>입력</strong>: 현재 LiDAR 스캔 (450+ points)</li>
+            <li><strong>서브맵 조회</strong>: 현재 위치 주변 서브맵 로드</li>
+            <li><strong>초기 추정</strong>: IMU/오도메트리 기반 초기 위치 예측</li>
+            <li><strong>최적화</strong>: Ceres Solver로 스캔-맵 정합 최적화</li>
+            <li><strong>출력</strong>: 최적화된 로봇 포즈 (x, y, θ)</li>
+        </ol>
+        <div class="highlight">
+            <strong>비용 함수</strong>: 스캔 포인트들이 맵의 점유 영역과 얼마나 잘 맞는지 측정
+        </div>
+    </div>
+
+    <h3>2. 서브맵 (Submap)</h3>
+    <div class="algorithm-box">
+        <h4>서브맵 구조</h4>
+        <p>Cartographer는 전체 맵을 여러 개의 서브맵으로 분할하여 관리합니다.</p>
+        <ul>
+            <li><strong>크기</strong>: 약 200 스캔으로 하나의 서브맵 구성</li>
+            <li><strong>해상도</strong>: 5cm × 5cm 격자</li>
+            <li><strong>확률 표현</strong>: 각 셀은 점유 확률 (0~1) 저장</li>
+            <li><strong>Insertion</strong>: 새 스캔이 서브맵에 추가되며 확률 업데이트</li>
+        </ul>
+<pre>
+Probability Update (Log-odds):
+  l(x) = log(p(x) / (1 - p(x)))
+
+Hit Update:   l_new = l_old + l_hit
+Miss Update:  l_new = l_old + l_miss
+</pre>
+    </div>
+
+    <h3>3. 루프 클로저 (Loop Closure)</h3>
+    <div class="algorithm-box">
+        <h4>Global Optimization</h4>
+        <p>로봇이 이전에 방문한 장소로 돌아왔을 때, 누적 오차를 보정합니다.</p>
+        <ol>
+            <li><strong>후보 검출</strong>: 완성된 서브맵들과 현재 스캔 비교</li>
+            <li><strong>매칭</strong>: Branch-and-bound 알고리즘으로 빠른 검색</li>
+            <li><strong>검증</strong>: 높은 매칭 스코어 시 루프 클로저 확정</li>
+            <li><strong>최적화</strong>: 포즈 그래프 전체 재최적화</li>
+        </ol>
+        <div class="highlight">
+            <strong>포즈 그래프</strong>: 노드(로봇 포즈) + 엣지(스캔 매칭 제약) 구조로 SPA(Sparse Pose Adjustment) 최적화
+        </div>
+    </div>
+
+    <div class="diagram">
+     Loop Closure Detection
+     ════════════════════════════════════════════════════════
+
+     Start Position                    Current Position
+          ●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━●
+          │                                          │
+          │    ┌─────────────────────────────────┐   │
+          │    │                                 │   │
+          │    │     Explored Area               │   │
+          │    │                                 │   │
+          │    │    ┌───┐                        │   │
+          │    │    │   │ ← Submap 1            │   │
+          │    │    └───┘                        │   │
+          │    │          ┌───┐                  │   │
+          │    │          │   │ ← Submap 2      │   │
+          │    │          └───┘                  │   │
+          │    └─────────────────────────────────┘   │
+          │                                          │
+          └━━━━━━━━━━━ Loop Detected! ━━━━━━━━━━━━━━┘
+
+     → Pose Graph Optimization → Drift Correction
+    </div>
+</section>
+
+<section>
+    <h2>좌표 프레임 (Coordinate Frames)</h2>
+    <div class="info-box">
+        <strong>TF Tree</strong>: ROS2의 좌표 변환 시스템으로, 각 프레임 간의 관계를 정의합니다.
+    </div>
+
+    <div class="diagram">
+     TF Transform Tree
+     ═══════════════════════════════════
+
+              map (고정, SLAM 출력)
+               │
+               │  map → odom (SLAM 보정)
+               │  - SLAM이 계산한 drift 보정
+               ▼
+              odom (오도메트리 기준)
+               │
+               │  odom → base_footprint
+               │  - 바퀴 엔코더 기반
+               ▼
+          base_footprint (로봇 바닥)
+               │
+               ├── base_link (로봇 중심)
+               │      │
+               │      ├── base_laser (LiDAR)
+               │      │
+               │      └── camera_link (카메라)
+               │
+               ├── wheel_left_link
+               │
+               └── wheel_right_link
+    </div>
+
+    <table>
+        <tr><th>Frame</th><th>Description</th><th>Published By</th></tr>
+        <tr><td><code>map</code></td><td>월드 고정 좌표계 (SLAM 맵 기준)</td><td>Cartographer</td></tr>
+        <tr><td><code>odom</code></td><td>오도메트리 기준 좌표계</td><td>robot_driver</td></tr>
+        <tr><td><code>base_footprint</code></td><td>로봇 바닥면 중심</td><td>robot_driver</td></tr>
+        <tr><td><code>base_link</code></td><td>로봇 본체 중심</td><td>URDF (static)</td></tr>
+        <tr><td><code>base_laser</code></td><td>LiDAR 센서 위치</td><td>URDF (static)</td></tr>
+    </table>
+
+    <div class="warning-box">
+        <strong>중요</strong>: 웹 UI에서 로봇 위치를 표시할 때는 <code>map → odom</code> 변환을 적용해야 SLAM 보정이 반영됩니다. 단순히 <code>/odom</code> 토픽만 사용하면 드리프트가 발생합니다.
+    </div>
+</section>
+
+<section>
+    <h2>Auto Exploration Algorithm</h2>
+    <p>SDV Robot의 <strong>자동 탐색 모드</strong>는 로봇 청소기와 유사하게 미탐색 영역을 자동으로 탐색합니다.</p>
+
+    <div class="algorithm-box">
+        <h4>Frontier-Based Exploration</h4>
+        <p>탐색된 영역(free)과 미탐색 영역(unknown)의 경계(frontier)를 찾아 이동합니다.</p>
+        <ol>
+            <li><strong>맵 분석</strong>: Occupancy Grid에서 frontier 셀 검출</li>
+            <li><strong>클러스터링</strong>: 인접한 frontier 셀들을 그룹화</li>
+            <li><strong>목표 선정</strong>: 가장 가까운/큰 frontier 클러스터 선택</li>
+            <li><strong>경로 계획</strong>: 선택된 frontier로 이동 경로 생성</li>
+            <li><strong>이동 및 반복</strong>: 목표 도달 후 다음 frontier 탐색</li>
+        </ol>
+    </div>
+
+    <div class="diagram">
+     Frontier Detection
+     ═══════════════════════════════════════════
+
+     ████████████████████████████████████████
+     ██                                    ██
+     ██  ░░░░░░░░░░░░░░░░░░ ████████████  ██
+     ██  ░░░░░░░░░░░░░░░░░░ ████████████  ██
+     ██  ░░░░░░░░░░░░░░░░░░ ████████████  ██
+     ██  ░░░░░░░░░🤖░░░░░░░ ████████████  ██
+     ██  ░░░░░░░░░░░░░░░░░░ ████████████  ██
+     ██  ░░░░░░░░░░░░░░░░░░→████████████  ██
+     ██  ░░░░░░░░░░░░░░░░░░ ████████████  ██
+     ██                    ▲               ██
+     ████████████████████████████████████████
+
+     Legend:
+       ██ = Wall (Occupied)
+       ░░ = Explored (Free)
+       ▓▓ = Unknown
+       → = Frontier (Target)
+       🤖 = Robot
+    </div>
+
+    <h3>구현 세부사항</h3>
+    <table>
+        <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
+        <tr><td>exploration_speed</td><td>0.15 m/s</td><td>탐색 시 선속도</td></tr>
+        <tr><td>rotation_speed</td><td>0.5 rad/s</td><td>회전 속도</td></tr>
+        <tr><td>obstacle_distance</td><td>0.25 m</td><td>장애물 감지 거리</td></tr>
+        <tr><td>frontier_threshold</td><td>10 cells</td><td>최소 frontier 크기</td></tr>
+    </table>
+</section>
+
+<section>
+    <h2>맵 저장 및 불러오기</h2>
+
+    <h3>맵 슬롯 시스템</h3>
+    <p>SDV Robot은 10개의 맵 슬롯을 지원합니다. 각 슬롯에 다른 환경의 맵을 저장할 수 있습니다.</p>
+
+    <div class="cards">
+        <div class="card">
+            <h3>💾 맵 저장</h3>
+<pre>
+# ROS2 서비스 호출
+ros2 service call /write_state \
+  cartographer_ros_msgs/srv/WriteState \
+  "{filename: 'map_slot_1.pbstream'}"
+
+# 또는 웹 UI에서 Save 버튼 클릭
+</pre>
+        </div>
+        <div class="card">
+            <h3>📂 맵 불러오기</h3>
+<pre>
+# Navigation 모드에서 저장된 맵 사용
+# 1. Map 탭에서 Load 버튼 클릭
+# 2. 슬롯 선택 (1-10)
+# 3. Nav 버튼으로 Navigation 시작
+</pre>
+        </div>
+    </div>
+
+    <h3>저장 파일 형식</h3>
+    <table>
+        <tr><th>File</th><th>Format</th><th>Content</th></tr>
+        <tr><td><code>map_slot_N.pbstream</code></td><td>Protobuf</td><td>Cartographer 내부 상태</td></tr>
+        <tr><td><code>map_slot_N.pgm</code></td><td>PGM Image</td><td>Occupancy Grid 이미지</td></tr>
+        <tr><td><code>map_slot_N.yaml</code></td><td>YAML</td><td>맵 메타데이터 (해상도, 원점)</td></tr>
+    </table>
+
+    <h3>YAML 파일 예시</h3>
+<pre>
+image: map_slot_1.pgm
+resolution: 0.05
+origin: [-10.0, -10.0, 0.0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.196
+</pre>
+</section>
+
+<section>
+    <h2>Cartographer 파라미터</h2>
+
+    <div class="info-box">
+        <strong>설정 파일</strong>: <code>src/robot_slam/config/cartographer.lua</code>
+    </div>
+
+    <h3>주요 파라미터</h3>
+    <table>
+        <tr><th>Parameter</th><th>Value</th><th>Description</th></tr>
+        <tr><td>tracking_frame</td><td>base_footprint</td><td>SLAM 추적 기준 프레임</td></tr>
+        <tr><td>published_frame</td><td>odom</td><td>출력 프레임</td></tr>
+        <tr><td>odom_frame</td><td>odom</td><td>오도메트리 프레임</td></tr>
+        <tr><td>provide_odom_frame</td><td>false</td><td>자체 odom 발행 여부</td></tr>
+        <tr><td>use_odometry</td><td>true</td><td>오도메트리 사용</td></tr>
+        <tr><td>num_laser_scans</td><td>1</td><td>LiDAR 수</td></tr>
+        <tr><td>resolution</td><td>0.05</td><td>맵 해상도 (m/cell)</td></tr>
+    </table>
+
+    <h3>튜닝 팁</h3>
+    <div class="grid-2">
+        <div class="card">
+            <h3>더 정확한 맵</h3>
+            <ul>
+                <li>resolution 낮추기 (0.025)</li>
+                <li>scan_matching 강화</li>
+                <li>천천히 이동</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3>더 빠른 SLAM</h3>
+            <ul>
+                <li>resolution 높이기 (0.10)</li>
+                <li>submap 크기 증가</li>
+                <li>loop closure 빈도 감소</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>ROS2 Topics & Services</h2>
+
+    <h3>Topics</h3>
+    <table>
+        <tr><th>Topic</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>/scan</code></td><td>LaserScan</td><td>LiDAR 스캔 데이터</td></tr>
+        <tr><td><code>/odom</code></td><td>Odometry</td><td>휠 오도메트리</td></tr>
+        <tr><td><code>/map</code></td><td>OccupancyGrid</td><td>생성된 맵</td></tr>
+        <tr><td><code>/tf</code></td><td>TFMessage</td><td>좌표 변환</td></tr>
+        <tr><td><code>/trajectory_node_list</code></td><td>MarkerArray</td><td>로봇 경로</td></tr>
+    </table>
+
+    <h3>Services</h3>
+    <table>
+        <tr><th>Service</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>/write_state</code></td><td>WriteState</td><td>맵 상태 저장</td></tr>
+        <tr><td><code>/finish_trajectory</code></td><td>FinishTrajectory</td><td>경로 완료</td></tr>
+        <tr><td><code>/start_trajectory</code></td><td>StartTrajectory</td><td>새 경로 시작</td></tr>
+    </table>
+</section>
+
+</div>
+
+<footer>
+    <p><strong>SDV Robot</strong> - SLAM Documentation</p>
+    <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="hardware.html">Hardware</a>
+        <a href="navigation.html">Navigation</a>
+        <a href="ai.html">AI</a>
+        <a href="architecture.html">Architecture</a>
+    </div>
+    <p style="margin-top: 20px;">Developed by <a href="https://www.keti.re.kr">KETI</a></p>
+</footer>
+
+</body>
+</html>
