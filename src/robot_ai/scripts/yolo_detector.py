@@ -220,11 +220,10 @@ class YoloDetector(Node):
             dist_msg.data = distance
             self.distance_pub.publish(dist_msg)
 
-        # Publish all detections as JSON
-        if all_detections:
-            det_msg = String()
-            det_msg.data = json.dumps(all_detections)
-            self.detections_pub.publish(det_msg)
+        # Publish all detections as JSON (always publish, even if empty)
+        det_msg = String()
+        det_msg.data = json.dumps(all_detections)
+        self.detections_pub.publish(det_msg)
 
         # Publish debug image
         try:

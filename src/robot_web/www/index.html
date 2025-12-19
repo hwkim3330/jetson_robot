@@ -816,9 +816,13 @@ function onDet(m) {
         boxes = d;
         lastDetTime = Date.now();
         drawBoxes();
-        document.getElementById('logB').innerHTML = d.slice(0,4).map(x =>
-            `<span style="color:#ff9500">${x.class}</span> ${(x.confidence*100).toFixed(0)}%`
-        ).join(' | ');
+        if(d.length > 0) {
+            document.getElementById('logB').innerHTML = d.slice(0,4).map(x =>
+                `<span style="color:#ff9500">${x.class}</span> ${(x.confidence*100).toFixed(0)}%`
+            ).join(' | ');
+        } else {
+            document.getElementById('logB').textContent = 'Scanning...';
+        }
     } catch(e) {}
 }
 
