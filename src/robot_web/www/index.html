@@ -229,7 +229,11 @@ function initBoxCanvas() {
     if(wrap) { boxCanvas.width = wrap.clientWidth; boxCanvas.height = wrap.clientHeight; }
 }
 function initMapViewer() {
-    if(mapViewer) return;  // Already initialized
+    if(mapViewer) {
+        // Already have viewer, just try to setup gridClient if not done
+        if(conn && !gridClient) setupMapClient();
+        return;
+    }
     const mapDiv = document.getElementById('mapDiv');
     if(!mapDiv) return;
     const wrap = mapDiv.parentElement;
@@ -265,6 +269,9 @@ function initMapViewer() {
     // Path line
     pathLine = new createjs.Shape();
     mapViewer.scene.addChild(pathLine);
+
+    // Setup gridClient if ROS already connected
+    if(conn) setupMapClient();
 }
 function resizeMapViewer() {
     if(!mapViewer) return;
@@ -499,7 +506,11 @@ function setup() {
 }
 
 function setupMapClient() {
-    if(!mapViewer || gridClient) return;
+    if(!mapViewer || gridClient) {
+        console.log('setupMapClient skip:', !mapViewer ? 'no viewer' : 'already has gridClient');
+        return;
+    }
+    console.log('setupMapClient: creating OccupancyGridClient');
 
     // Create OccupancyGridClient - automatically subscribes to /map
     gridClient = new ROS2D.OccupancyGridClient({
@@ -510,6 +521,7 @@ function setupMapClient() {
 
     // Scale viewer when map changes
     gridClient.on('change', function() {
+        console.log('gridClient change event - map received');
         if(gridClient.currentGrid) {
             mapInfo = {
                 width: gridClient.currentGrid.width,
@@ -523,6 +535,7 @@ function setupMapClient() {
             const mw = mapInfo.width * mapInfo.resolution;
             const mh = mapInfo.height * mapInfo.resolution;
             document.getElementById('mapInfo').innerHTML = `${mw.toFixed(1)}×${mh.toFixed(1)}m`;
+            console.log('Map scaled:', mw.toFixed(1), 'x', mh.toFixed(1), 'm');
         }
     });
 
