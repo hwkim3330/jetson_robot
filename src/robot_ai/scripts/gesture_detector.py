@@ -58,8 +58,8 @@ class GestureDetector(Node):
         # Initialize detector
         self._init_detector()
 
-        # QoS
-        qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+        # QoS - use RELIABLE to match camera publisher
+        qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE)
 
         # Subscribers
         self.image_sub = self.create_subscription(
