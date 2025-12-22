@@ -37,8 +37,8 @@ class GestureDetector(Node):
 
         # Parameters
         self.declare_parameter('detection_rate', 10.0)
-        self.declare_parameter('min_detection_confidence', 0.7)
-        self.declare_parameter('min_tracking_confidence', 0.5)
+        self.declare_parameter('min_detection_confidence', 0.4)
+        self.declare_parameter('min_tracking_confidence', 0.3)
         self.declare_parameter('enable_control', False)
         self.declare_parameter('linear_speed', 0.15)
         self.declare_parameter('angular_speed', 0.5)
@@ -90,7 +90,7 @@ class GestureDetector(Node):
             self.mp_hands = mp.solutions.hands
             self.mp_draw = mp.solutions.drawing_utils
             self.hands = self.mp_hands.Hands(
-                static_image_mode=False,
+                static_image_mode=True,  # Better for camera stream
                 max_num_hands=1,
                 min_detection_confidence=self.min_detection_conf,
                 min_tracking_confidence=self.min_tracking_conf
@@ -120,8 +120,10 @@ class GestureDetector(Node):
         try:
             np_arr = np.frombuffer(msg.data, np.uint8)
             self.last_frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            if self.last_frame is not None:
+                self.get_logger().debug(f'Got frame: {self.last_frame.shape}')
         except Exception as e:
-            pass
+            self.get_logger().error(f'Decode error: {e}')
 
     def detect_callback(self):
         """Run gesture detection"""
@@ -175,6 +177,10 @@ class GestureDetector(Node):
 
         gesture = "none"
         hand_center = None
+
+        # Debug: log detection status
+        has_hands = results.multi_hand_landmarks is not None and len(results.multi_hand_landmarks) > 0
+        self.get_logger().info(f'Frame {frame.shape}, hands detected: {has_hands}', throttle_duration_sec=2.0)
 
         if results.multi_hand_landmarks:
             hand_landmarks = results.multi_hand_landmarks[0]
