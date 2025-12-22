@@ -15,7 +15,7 @@ Falls back to OpenCV-based detection if MediaPipe unavailable
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CompressedImage
 from geometry_msgs.msg import Twist, Point
 from std_msgs.msg import Bool, String, Float32MultiArray
 from cv_bridge import CvBridge
@@ -64,6 +64,8 @@ class GestureDetector(Node):
         # Subscribers
         self.image_sub = self.create_subscription(
             Image, '/camera/image_raw', self.image_callback, qos)
+        self.compressed_sub = self.create_subscription(
+            CompressedImage, '/camera/image_raw/compressed', self.compressed_callback, qos)
         self.enable_sub = self.create_subscription(
             Bool, '/gesture_enable', self.enable_callback, 10)
 
@@ -110,6 +112,14 @@ class GestureDetector(Node):
         """Handle incoming images"""
         try:
             self.last_frame = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
+        except Exception as e:
+            pass
+
+    def compressed_callback(self, msg):
+        """Handle compressed images"""
+        try:
+            np_arr = np.frombuffer(msg.data, np.uint8)
+            self.last_frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         except Exception as e:
             pass
 
