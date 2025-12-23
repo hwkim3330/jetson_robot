@@ -450,34 +450,28 @@ function setCam() {
     // Use nginx proxy (/stream) for same-origin access (avoids CORS)
     const cam1 = document.getElementById('cam1');
     const cam2 = document.getElementById('cam2');
+    let lastFrameTime = {};
 
     function startStream(img) {
-        // Add timestamp to prevent caching and force reconnect
-        img.src = `/stream?t=${Date.now()}`;
+        // Clear src first to force browser to reconnect
+        img.src = '';
+        setTimeout(() => {
+            img.src = `/stream?t=${Date.now()}`;
+            lastFrameTime[img.id] = Date.now();
+        }, 100);
     }
 
     function setupCam(img) {
-        let retryCount = 0;
-        const maxRetries = 100;
         let retryTimer = null;
 
         img.onerror = () => {
-            console.log('Camera stream error, retrying...');
+            console.log(`Camera ${img.id} error, retrying in 2s...`);
             if (retryTimer) clearTimeout(retryTimer);
-            retryCount++;
-            // Exponential backoff: 1s, 2s, 4s... max 10s
-            const delay = Math.min(1000 * Math.pow(1.5, Math.min(retryCount, 5)), 10000);
-            retryTimer = setTimeout(() => startStream(img), delay);
+            retryTimer = setTimeout(() => startStream(img), 2000);
         };
 
         img.onload = () => {
-            retryCount = 0;  // Reset on successful load
-        };
-
-        // For MJPEG streams, also handle stall detection
-        img.onstalled = () => {
-            console.log('Camera stream stalled, reconnecting...');
-            setTimeout(() => startStream(img), 1000);
+            lastFrameTime[img.id] = Date.now();
         };
 
         startStream(img);
@@ -486,16 +480,18 @@ function setCam() {
     setupCam(cam1);
     setupCam(cam2);
 
-    // Periodic health check - reconnect if stream seems dead
+    // Health check every 10 seconds - reconnect if stream seems dead
     setInterval(() => {
+        const now = Date.now();
         [cam1, cam2].forEach(img => {
-            // If image not loaded or very old, try reconnect
-            if (!img.complete || img.naturalWidth === 0) {
-                console.log('Camera health check: reconnecting...');
+            const lastTime = lastFrameTime[img.id] || 0;
+            // If no frame for 15 seconds or image broken, reconnect
+            if (now - lastTime > 15000 || img.naturalWidth === 0) {
+                console.log(`Camera ${img.id} health check: reconnecting...`);
                 startStream(img);
             }
         });
-    }, 30000);  // Check every 30 seconds
+    }, 10000);
 }
 
 // Tabs
