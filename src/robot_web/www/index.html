@@ -114,7 +114,7 @@
     <div class="content">
         <div class="page active" id="page-control">
             <div class="camera-wrap">
-                <img id="cam1" src="" alt="">
+                <img id="cam1" src="/stream" alt="Camera">
                 <canvas id="handOverlay"></canvas>
                 <div id="gestureLabel"></div>
                 <button class="hand-btn" id="bHand">🖐️</button>
@@ -191,7 +191,7 @@
 
         <div class="page" id="page-ai">
             <div class="camera-wrap">
-                <img id="cam2" src="" alt="">
+                <img id="cam2" src="/stream" alt="Camera">
                 <canvas id="boxCanvas"></canvas>
                 <button class="ai-btn" id="yoloB">YOLO</button>
             </div>
@@ -447,24 +447,15 @@ window.onresize = () => { initLids(); initBoxCanvas(); resizeMapViewer(); };
 setTimeout(() => { initLids(); initBoxCanvas(); }, 100);
 
 function setCam() {
-    // Use nginx proxy (/stream) for same-origin access (avoids CORS)
-    const cam1 = document.getElementById('cam1');
-    const cam2 = document.getElementById('cam2');
-
-    function startStream(img) {
-        img.src = `/stream?t=${Date.now()}`;
-    }
-
-    function setupCam(img) {
+    // Camera src is set in HTML, this handles error recovery
+    const cams = [document.getElementById('cam1'), document.getElementById('cam2')];
+    cams.forEach(img => {
+        if (!img) return;
         img.onerror = () => {
             console.log(`Camera ${img.id} error, retrying...`);
-            setTimeout(() => startStream(img), 2000);
+            setTimeout(() => { img.src = `/stream?t=${Date.now()}`; }, 2000);
         };
-        startStream(img);
-    }
-
-    setupCam(cam1);
-    setupCam(cam2);
+    });
 }
 
 // Tabs
