@@ -450,48 +450,21 @@ function setCam() {
     // Use nginx proxy (/stream) for same-origin access (avoids CORS)
     const cam1 = document.getElementById('cam1');
     const cam2 = document.getElementById('cam2');
-    let lastFrameTime = {};
 
     function startStream(img) {
-        // Clear src first to force browser to reconnect
-        img.src = '';
-        setTimeout(() => {
-            img.src = `/stream?t=${Date.now()}`;
-            lastFrameTime[img.id] = Date.now();
-        }, 100);
+        img.src = `/stream?t=${Date.now()}`;
     }
 
     function setupCam(img) {
-        let retryTimer = null;
-
         img.onerror = () => {
-            console.log(`Camera ${img.id} error, retrying in 2s...`);
-            if (retryTimer) clearTimeout(retryTimer);
-            retryTimer = setTimeout(() => startStream(img), 2000);
+            console.log(`Camera ${img.id} error, retrying...`);
+            setTimeout(() => startStream(img), 2000);
         };
-
-        img.onload = () => {
-            lastFrameTime[img.id] = Date.now();
-        };
-
         startStream(img);
     }
 
     setupCam(cam1);
     setupCam(cam2);
-
-    // Health check every 10 seconds - reconnect if stream seems dead
-    setInterval(() => {
-        const now = Date.now();
-        [cam1, cam2].forEach(img => {
-            const lastTime = lastFrameTime[img.id] || 0;
-            // If no frame for 15 seconds or image broken, reconnect
-            if (now - lastTime > 15000 || img.naturalWidth === 0) {
-                console.log(`Camera ${img.id} health check: reconnecting...`);
-                startStream(img);
-            }
-        });
-    }, 10000);
 }
 
 // Tabs
