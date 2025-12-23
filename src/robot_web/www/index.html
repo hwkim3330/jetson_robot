@@ -89,7 +89,7 @@
         .ai-btn { position: absolute; top: 8px; right: 8px; padding: 8px 16px; background: rgba(255,255,255,0.9); border: none; border-radius: 8px; font-size: 12px; font-weight: 600; z-index: 5; cursor: pointer; }
         .ai-btn:active { transform: scale(0.95); }
         .ai-btn.on { background: #34c759; color: #fff; }
-        .log-bar { background: #1c1c1e; color: #34c759; font-family: monospace; font-size: 11px; padding: 6px 12px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .log-bar { background: linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%); color: #fff; font-family: -apple-system, sans-serif; font-size: 12px; padding: 8px 14px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 1px solid #3a3a3c; }
 
         /* Hand tracking overlay */
         #handOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
@@ -1286,23 +1286,32 @@ function onDet(m) {
         boxes = d;
         lastDetTime = Date.now();
         drawBoxes();
+        const logEl = document.getElementById('logB');
         if(d.length > 0) {
-            document.getElementById('logB').innerHTML = d.slice(0,4).map(x =>
-                `<span style="color:#ff9500">${x.class}</span> ${(x.confidence*100).toFixed(0)}%`
-            ).join(' | ');
+            logEl.innerHTML = d.slice(0,5).map(x => {
+                const color = getClassColor(x.class);
+                const conf = Math.round((x.confidence || 0) * 100);
+                return `<span style="color:${color};font-weight:600">${x.class}</span> <span style="color:#8e8e93">${conf}%</span>`;
+            }).join(' <span style="color:#48484a;margin:0 6px">|</span> ');
         } else {
-            document.getElementById('logB').textContent = 'Scanning...';
+            logEl.innerHTML = '<span style="color:#8e8e93">Scanning for objects...</span>';
         }
     } catch(e) {}
 }
 
 let lastDetTime = 0;
+const classColors = {
+    person: '#00e676', car: '#ff5252', dog: '#ffab40', cat: '#e040fb',
+    bicycle: '#40c4ff', motorcycle: '#ff6e40', bus: '#7c4dff', truck: '#ff4081'
+};
+function getClassColor(cls) {
+    return classColors[cls] || '#ffd740';
+}
 function drawBoxes() {
     if(!boxCanvas) return;
     const ctx = boxCanvas.getContext('2d');
     const cw = boxCanvas.width, ch = boxCanvas.height;
     ctx.clearRect(0, 0, cw, ch);
-    // Clear old boxes after 500ms of no detection
     if(!yolo || !boxes.length || Date.now() - lastDetTime > 500) {
         boxes = [];
         return;
@@ -1313,10 +1322,45 @@ function drawBoxes() {
         const [x1, y1, x2, y2] = b.bbox;
         const sx = x1 * scaleX, sy = y1 * scaleY;
         const sw = (x2 - x1) * scaleX, sh = (y2 - y1) * scaleY;
-        const color = b.class === 'person' ? '#00ff00' : '#ff9500';
+        const color = getClassColor(b.class);
+        const conf = Math.round((b.confidence || 0) * 100);
+        const label = `${b.class} ${conf}%`;
+        const r = 4; // corner radius
+
+        // Rounded rectangle path
+        ctx.beginPath();
+        ctx.moveTo(sx + r, sy);
+        ctx.lineTo(sx + sw - r, sy);
+        ctx.quadraticCurveTo(sx + sw, sy, sx + sw, sy + r);
+        ctx.lineTo(sx + sw, sy + sh - r);
+        ctx.quadraticCurveTo(sx + sw, sy + sh, sx + sw - r, sy + sh);
+        ctx.lineTo(sx + r, sy + sh);
+        ctx.quadraticCurveTo(sx, sy + sh, sx, sy + sh - r);
+        ctx.lineTo(sx, sy + r);
+        ctx.quadraticCurveTo(sx, sy, sx + r, sy);
+        ctx.closePath();
+
+        // Semi-transparent fill
+        ctx.fillStyle = color + '18';
+        ctx.fill();
+
+        // Border
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
-        ctx.strokeRect(sx, sy, sw, sh);
+        ctx.stroke();
+
+        // Label background
+        ctx.font = 'bold 12px -apple-system, sans-serif';
+        const tw = ctx.measureText(label).width + 8;
+        const th = 18;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(sx, sy - th - 2, tw, th, [4, 4, 0, 0]);
+        ctx.fill();
+
+        // Label text
+        ctx.fillStyle = '#000';
+        ctx.fillText(label, sx + 4, sy - 6);
     });
 }
 
