@@ -64,8 +64,8 @@ class YoloDetector(Node):
         # Load model
         self._load_model()
 
-        # QoS
-        qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+        # QoS - use RELIABLE to match camera publisher
+        qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE)
 
         # Subscribers (CompressedImage for nvjpegenc camera)
         self.image_sub = self.create_subscription(

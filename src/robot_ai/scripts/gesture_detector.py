@@ -90,12 +90,12 @@ class GestureDetector(Node):
             self.mp_hands = mp.solutions.hands
             self.mp_draw = mp.solutions.drawing_utils
             self.hands = self.mp_hands.Hands(
-                static_image_mode=True,  # Better for camera stream
-                max_num_hands=1,
+                static_image_mode=False,  # Video mode for better tracking
+                max_num_hands=2,  # Support both hands
                 min_detection_confidence=self.min_detection_conf,
                 min_tracking_confidence=self.min_tracking_conf
             )
-            self.get_logger().info('MediaPipe Hands initialized')
+            self.get_logger().info('MediaPipe Hands initialized (2 hands supported)')
         else:
             self.get_logger().warn('MediaPipe not available, using skin color detection')
 
@@ -171,47 +171,58 @@ class GestureDetector(Node):
             pass
 
     def _detect_mediapipe(self, frame):
-        """Detect hand gestures using MediaPipe"""
+        """Detect hand gestures using MediaPipe (supports 2 hands)"""
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self.hands.process(rgb)
 
         gesture = "none"
         hand_center = None
+        h, w = frame.shape[:2]
 
         # Debug: log detection status
-        has_hands = results.multi_hand_landmarks is not None and len(results.multi_hand_landmarks) > 0
-        self.get_logger().info(f'Frame {frame.shape}, hands detected: {has_hands}', throttle_duration_sec=2.0)
+        num_hands = len(results.multi_hand_landmarks) if results.multi_hand_landmarks else 0
+        self.get_logger().info(f'Hands detected: {num_hands}', throttle_duration_sec=2.0)
+
+        all_landmarks_normalized = []  # For web overlay (all hands)
+        gestures = []  # Collect gestures from all hands
 
         if results.multi_hand_landmarks:
-            hand_landmarks = results.multi_hand_landmarks[0]
-            self.mp_draw.draw_landmarks(
-                frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
+            for hand_idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
+                # Draw landmarks for each hand
+                self.mp_draw.draw_landmarks(
+                    frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
 
-            # Get landmark positions (normalized 0-1)
-            h, w = frame.shape[:2]
-            landmarks = []
-            landmarks_normalized = []
-            for lm in hand_landmarks.landmark:
-                landmarks.append((int(lm.x * w), int(lm.y * h)))
-                landmarks_normalized.extend([lm.x, lm.y])  # 21 points * 2 = 42 floats
+                # Get landmark positions
+                landmarks = []
+                landmarks_normalized = []
+                for lm in hand_landmarks.landmark:
+                    landmarks.append((int(lm.x * w), int(lm.y * h)))
+                    landmarks_normalized.extend([lm.x, lm.y])  # 21 points * 2 = 42 floats
 
-            # Publish landmarks for web overlay
-            lm_msg = Float32MultiArray()
-            lm_msg.data = landmarks_normalized
-            self.landmarks_pub.publish(lm_msg)
+                # Add to all landmarks (for web overlay)
+                all_landmarks_normalized.extend(landmarks_normalized)
 
-            # Calculate hand center
-            xs = [l[0] for l in landmarks]
-            ys = [l[1] for l in landmarks]
-            hand_center = (sum(xs) // len(xs), sum(ys) // len(ys))
+                # Calculate hand center (use first hand for robot control)
+                if hand_idx == 0:
+                    xs = [l[0] for l in landmarks]
+                    ys = [l[1] for l in landmarks]
+                    hand_center = (sum(xs) // len(xs), sum(ys) // len(ys))
 
-            # Analyze gesture
-            gesture = self._analyze_gesture(landmarks)
-        else:
-            # No hand - publish empty landmarks
-            lm_msg = Float32MultiArray()
-            lm_msg.data = []
-            self.landmarks_pub.publish(lm_msg)
+                # Analyze gesture for this hand
+                hand_gesture = self._analyze_gesture(landmarks)
+                if hand_gesture != "none" and hand_gesture != "unknown":
+                    gestures.append(hand_gesture)
+
+            # Priority: use strongest gesture (stop > other commands)
+            if "stop" in gestures:
+                gesture = "stop"
+            elif gestures:
+                gesture = gestures[0]  # Use first valid gesture
+
+        # Publish landmarks for web overlay (all hands)
+        lm_msg = Float32MultiArray()
+        lm_msg.data = all_landmarks_normalized
+        self.landmarks_pub.publish(lm_msg)
 
         return gesture, hand_center, frame
 

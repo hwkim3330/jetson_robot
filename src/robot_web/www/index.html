@@ -1982,36 +1982,44 @@ function drawHandOverlay() {
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if(handLandmarks.length < 42) return;  // 21 points * 2 coords
+    if(handLandmarks.length < 42) return;  // At least 1 hand (21 points * 2 coords)
 
     const w = canvas.width;
     const h = canvas.height;
 
-    // Parse landmarks
-    const points = [];
-    for(let i = 0; i < 21; i++) {
-        points.push({
-            x: handLandmarks[i*2] * w,
-            y: handLandmarks[i*2+1] * h
-        });
-    }
+    // Calculate number of hands (42 floats per hand)
+    const numHands = Math.floor(handLandmarks.length / 42);
+    const colors = ['#00ff00', '#00aaff'];  // Green for 1st hand, blue for 2nd
 
-    // Draw connections
-    ctx.strokeStyle = '#00ff00';
-    ctx.lineWidth = 2;
-    for(const [a, b] of HAND_CONNECTIONS) {
-        ctx.beginPath();
-        ctx.moveTo(points[a].x, points[a].y);
-        ctx.lineTo(points[b].x, points[b].y);
-        ctx.stroke();
-    }
+    for(let handIdx = 0; handIdx < numHands; handIdx++) {
+        const offset = handIdx * 42;
 
-    // Draw landmarks
-    ctx.fillStyle = '#ff0000';
-    for(const p of points) {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-        ctx.fill();
+        // Parse landmarks for this hand
+        const points = [];
+        for(let i = 0; i < 21; i++) {
+            points.push({
+                x: handLandmarks[offset + i*2] * w,
+                y: handLandmarks[offset + i*2+1] * h
+            });
+        }
+
+        // Draw connections
+        ctx.strokeStyle = colors[handIdx % colors.length];
+        ctx.lineWidth = 2;
+        for(const [a, b] of HAND_CONNECTIONS) {
+            ctx.beginPath();
+            ctx.moveTo(points[a].x, points[a].y);
+            ctx.lineTo(points[b].x, points[b].y);
+            ctx.stroke();
+        }
+
+        // Draw landmarks
+        ctx.fillStyle = handIdx === 0 ? '#ff0000' : '#ff6600';
+        for(const p of points) {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 }
 </script>
