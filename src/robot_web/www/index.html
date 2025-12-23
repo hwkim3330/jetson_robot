@@ -448,9 +448,54 @@ setTimeout(() => { initLids(); initBoxCanvas(); }, 100);
 
 function setCam() {
     // Use nginx proxy (/stream) for same-origin access (avoids CORS)
-    const s = `/stream`;
-    document.getElementById('cam1').src = s;
-    document.getElementById('cam2').src = s;
+    const cam1 = document.getElementById('cam1');
+    const cam2 = document.getElementById('cam2');
+
+    function startStream(img) {
+        // Add timestamp to prevent caching and force reconnect
+        img.src = `/stream?t=${Date.now()}`;
+    }
+
+    function setupCam(img) {
+        let retryCount = 0;
+        const maxRetries = 100;
+        let retryTimer = null;
+
+        img.onerror = () => {
+            console.log('Camera stream error, retrying...');
+            if (retryTimer) clearTimeout(retryTimer);
+            retryCount++;
+            // Exponential backoff: 1s, 2s, 4s... max 10s
+            const delay = Math.min(1000 * Math.pow(1.5, Math.min(retryCount, 5)), 10000);
+            retryTimer = setTimeout(() => startStream(img), delay);
+        };
+
+        img.onload = () => {
+            retryCount = 0;  // Reset on successful load
+        };
+
+        // For MJPEG streams, also handle stall detection
+        img.onstalled = () => {
+            console.log('Camera stream stalled, reconnecting...');
+            setTimeout(() => startStream(img), 1000);
+        };
+
+        startStream(img);
+    }
+
+    setupCam(cam1);
+    setupCam(cam2);
+
+    // Periodic health check - reconnect if stream seems dead
+    setInterval(() => {
+        [cam1, cam2].forEach(img => {
+            // If image not loaded or very old, try reconnect
+            if (!img.complete || img.naturalWidth === 0) {
+                console.log('Camera health check: reconnecting...');
+                startStream(img);
+            }
+        });
+    }, 30000);  // Check every 30 seconds
 }
 
 // Tabs
@@ -709,6 +754,9 @@ function setup() {
 
     // Setup ros2d map client (handles /map subscription internally)
     setupMapClient();
+
+    // Initialize hand tracking for MediaPipe overlay
+    initHandTracking();
 }
 
 function setupMapClient() {
@@ -1966,13 +2014,6 @@ function drawHandOverlay() {
         ctx.fill();
     }
 }
-
-// Initialize after ROS connection
-const origConnect = connect;
-connect = function() {
-    origConnect();
-    setTimeout(initHandTracking, 1000);
-};
 </script>
 </body>
 </html>

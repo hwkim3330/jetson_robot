@@ -29,7 +29,8 @@ SDV(Software Defined Vehicle)는 NVIDIA Jetson Orin Nano Super를 기반으로 �
 | **Navigation** | Nav2 기반 자율 주행 |
 | **Auto Explore** | LiDAR 기반 자동 맵 탐색 (로봇 청소기 모드) |
 | **AI Detection** | YOLOv8 TensorRT 객체 인식 (147 FPS) |
-| **Camera** | 16:9 실시간 스트리밍 (MJPEG) |
+| **Gesture Control** | MediaPipe 손 제스처로 로봇 제어 |
+| **Camera** | 16:9 실시간 스트리밍 (MJPEG) + 자동 재연결 |
 
 ---
 
@@ -241,6 +242,9 @@ http://<ROBOT_IP>:8888
 |-------|------|-------------|
 | `/detections` | String | YOLO detections (JSON) |
 | `/person_detected` | Bool | Person detection flag |
+| `/gesture` | String | Hand gesture (stop/go/left/right/thumbs_up) |
+| `/hand_landmarks` | Float32MultiArray | MediaPipe 21 hand landmarks |
+| `/gesture_enable` | Bool | Enable gesture control |
 
 ---
 
@@ -272,6 +276,39 @@ http://<ROBOT_IP>:8888
 | Resolution | 640 x 360 (16:9) |
 | FPS | 15 |
 | Encoding | Hardware JPEG (nvjpegenc) |
+
+---
+
+## Gesture Control
+
+MediaPipe를 사용한 손 제스처 인식으로 로봇을 제어할 수 있습니다.
+
+### Supported Gestures
+
+| Gesture | Action | Description |
+|---------|--------|-------------|
+| ✋ **STOP** | 정지 | 손바닥 펴기 (5손가락) |
+| ✊ **GO** | 전진 | 주먹 쥐기 |
+| 👈 **LEFT** | 좌회전 | 검지로 왼쪽 가리키기 |
+| 👉 **RIGHT** | 우회전 | 검지로 오른쪽 가리키기 |
+| ☝️ **FORWARD** | 전진 | 검지로 위 가리키기 |
+| 👇 **BACKWARD** | 후진 | 검지로 아래 가리키기 |
+| 👍 **THUMBS UP** | Follow | 엄지 위로 |
+| 👎 **THUMBS DOWN** | - | 엄지 아래로 |
+| ✌️ **PEACE** | 빠른전진 | V 사인 |
+| 🤟 **ROCK** | - | 검지+새끼손가락 |
+
+### Features
+
+- **방향 무관**: 손이 거꾸로, 옆으로 있어도 인식
+- **거리 기반 감지**: 카메라 거리에 무관하게 동작
+- **웹 오버레이**: 손 랜드마크가 카메라 영상에 실시간 표시
+
+### Usage
+
+1. 웹 UI의 Control 탭에서 🖐️ 버튼 클릭
+2. 카메라에 손을 보여주면 랜드마크 표시
+3. 제스처에 따라 로봇 제어
 
 ---
 

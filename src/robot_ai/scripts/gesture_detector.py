@@ -216,57 +216,232 @@ class GestureDetector(Node):
         return gesture, hand_center, frame
 
     def _analyze_gesture(self, landmarks):
-        """Analyze hand landmarks to determine gesture"""
+        """
+        Analyze hand landmarks to determine gesture.
+        Orientation-independent: works with hand upside down, sideways, etc.
+
+        MediaPipe Hand Landmarks:
+        0-WRIST, 1-THUMB_CMC, 2-THUMB_MCP, 3-THUMB_IP, 4-THUMB_TIP
+        5-INDEX_MCP, 6-INDEX_PIP, 7-INDEX_DIP, 8-INDEX_TIP
+        9-MIDDLE_MCP, 10-MIDDLE_PIP, 11-MIDDLE_DIP, 12-MIDDLE_TIP
+        13-RING_MCP, 14-RING_PIP, 15-RING_DIP, 16-RING_TIP
+        17-PINKY_MCP, 18-PINKY_PIP, 19-PINKY_DIP, 20-PINKY_TIP
+        """
         if len(landmarks) < 21:
             return "none"
 
-        # Finger tips and bases
+        def dist(p1, p2):
+            """Calculate distance between two points"""
+            return ((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2) ** 0.5
+
+        def normalize(v):
+            """Normalize a vector"""
+            mag = (v[0]**2 + v[1]**2) ** 0.5
+            if mag == 0:
+                return (0, 0)
+            return (v[0] / mag, v[1] / mag)
+
+        def dot(v1, v2):
+            """Dot product of two vectors"""
+            return v1[0] * v2[0] + v1[1] * v2[1]
+
+        def cross_2d(v1, v2):
+            """2D cross product (z component)"""
+            return v1[0] * v2[1] - v1[1] * v2[0]
+
+        # Key landmarks
+        wrist = landmarks[0]
+        thumb_cmc = landmarks[1]
+        thumb_mcp = landmarks[2]
+        thumb_ip = landmarks[3]
         thumb_tip = landmarks[4]
+
+        index_mcp = landmarks[5]
+        index_pip = landmarks[6]
+        index_dip = landmarks[7]
         index_tip = landmarks[8]
+
+        middle_mcp = landmarks[9]
+        middle_pip = landmarks[10]
+        middle_dip = landmarks[11]
         middle_tip = landmarks[12]
+
+        ring_mcp = landmarks[13]
+        ring_pip = landmarks[14]
+        ring_dip = landmarks[15]
         ring_tip = landmarks[16]
+
+        pinky_mcp = landmarks[17]
+        pinky_pip = landmarks[18]
+        pinky_dip = landmarks[19]
         pinky_tip = landmarks[20]
 
-        thumb_base = landmarks[2]
-        index_base = landmarks[5]
-        middle_base = landmarks[9]
-        ring_base = landmarks[13]
-        pinky_base = landmarks[17]
+        # Calculate palm reference vectors (orientation-independent)
+        # Palm direction: wrist -> middle_mcp (points toward fingers)
+        palm_vec = (middle_mcp[0] - wrist[0], middle_mcp[1] - wrist[1])
+        palm_dir = normalize(palm_vec)
+        palm_size = dist(wrist, middle_mcp)
 
-        wrist = landmarks[0]
+        if palm_size < 10:
+            return "none"
 
-        # Check if fingers are extended
-        def is_extended(tip, base):
-            return tip[1] < base[1]  # Y increases downward
+        # Palm width direction (perpendicular to palm_dir)
+        # For right hand: index side is "left" of palm_dir
+        palm_width_vec = (index_mcp[0] - pinky_mcp[0], index_mcp[1] - pinky_mcp[1])
+        palm_width = dist(index_mcp, pinky_mcp)
 
-        index_up = is_extended(index_tip, index_base)
-        middle_up = is_extended(middle_tip, middle_base)
-        ring_up = is_extended(ring_tip, ring_base)
-        pinky_up = is_extended(pinky_tip, pinky_base)
+        # Finger extension detection using angle-based method
+        # A finger is extended if it's relatively straight (tip far from MCP in finger direction)
+        def is_finger_extended(mcp, pip, dip, tip):
+            # Method 1: Distance ratio (works regardless of orientation)
+            dist_mcp_tip = dist(mcp, tip)
+            dist_mcp_pip = dist(mcp, pip)
 
-        # Thumb check (horizontal)
-        thumb_out = abs(thumb_tip[0] - thumb_base[0]) > 30
+            # Method 2: Check if finger is straight (pip-dip-tip angle)
+            # Bent finger has small angle, extended has large angle (~180)
+            v1 = (pip[0] - dip[0], pip[1] - dip[1])
+            v2 = (tip[0] - dip[0], tip[1] - dip[1])
+            dot_val = dot(v1, v2)
+            mag1 = (v1[0]**2 + v1[1]**2) ** 0.5
+            mag2 = (v2[0]**2 + v2[1]**2) ** 0.5
 
-        # Count extended fingers
-        fingers_up = sum([index_up, middle_up, ring_up, pinky_up])
+            # Also check tip is farther from wrist than pip (finger pointing outward)
+            tip_from_wrist = dist(wrist, tip)
+            pip_from_wrist = dist(wrist, pip)
 
-        # Gesture recognition
-        if fingers_up >= 4:
-            return "open_palm"  # Stop
-        elif fingers_up == 0:
-            return "fist"  # Forward
-        elif index_up and not middle_up and not ring_up and not pinky_up:
-            # Pointing - check direction
-            if index_tip[0] < wrist[0] - 50:
-                return "point_left"
-            elif index_tip[0] > wrist[0] + 50:
-                return "point_right"
+            # Combine criteria:
+            # 1. Tip significantly farther from MCP than PIP
+            # 2. Tip farther from wrist than PIP (finger pointing away)
+            is_extended = (dist_mcp_tip > dist_mcp_pip * 1.4) and (tip_from_wrist > pip_from_wrist * 0.9)
+
+            return is_extended
+
+        # Simpler extension check for 3-point fingers (no DIP needed)
+        def is_finger_extended_simple(mcp, pip, tip):
+            dist_mcp_tip = dist(mcp, tip)
+            dist_mcp_pip = dist(mcp, pip)
+            tip_from_wrist = dist(wrist, tip)
+            pip_from_wrist = dist(wrist, pip)
+            return (dist_mcp_tip > dist_mcp_pip * 1.4) and (tip_from_wrist > pip_from_wrist * 0.85)
+
+        # Thumb extension: special case
+        def is_thumb_extended():
+            dist_tip = dist(thumb_mcp, thumb_tip)
+            dist_ip = dist(thumb_mcp, thumb_ip)
+            # Thumb spread: distance from thumb tip to index mcp
+            thumb_spread = dist(thumb_tip, index_mcp)
+            # Extended if: tip far from mcp AND spread away from palm
+            return dist_tip > dist_ip * 1.2 and thumb_spread > palm_width * 0.4
+
+        # Check each finger
+        thumb_ext = is_thumb_extended()
+        index_ext = is_finger_extended(index_mcp, index_pip, index_dip, index_tip)
+        middle_ext = is_finger_extended(middle_mcp, middle_pip, middle_dip, middle_tip)
+        ring_ext = is_finger_extended(ring_mcp, ring_pip, ring_dip, ring_tip)
+        pinky_ext = is_finger_extended(pinky_mcp, pinky_pip, pinky_dip, pinky_tip)
+
+        fingers_extended = sum([index_ext, middle_ext, ring_ext, pinky_ext])
+        all_fingers = sum([thumb_ext, index_ext, middle_ext, ring_ext, pinky_ext])
+
+        # Get pointing direction relative to screen (for robot control)
+        # Uses the extended finger's direction
+        def get_pointing_direction():
+            # Vector from wrist to index tip
+            point_vec = (index_tip[0] - wrist[0], index_tip[1] - wrist[1])
+            mag = (point_vec[0]**2 + point_vec[1]**2) ** 0.5
+            if mag < palm_size * 0.5:
+                return "none"
+
+            # Use absolute screen coordinates for robot control
+            dx, dy = point_vec
+
+            # Determine dominant direction
+            if abs(dx) > abs(dy) * 1.3:  # Horizontal dominant
+                return "left" if dx < 0 else "right"
+            elif abs(dy) > abs(dx) * 1.3:  # Vertical dominant
+                return "up" if dy < 0 else "down"
             else:
-                return "point_up"
-        elif thumb_out and not index_up and not middle_up:
-            return "thumbs_up"  # Follow mode
-        elif index_up and middle_up and not ring_up and not pinky_up:
-            return "peace"  # Special command
+                # Diagonal - use stronger component
+                if abs(dx) > abs(dy):
+                    return "left" if dx < 0 else "right"
+                else:
+                    return "up" if dy < 0 else "down"
+
+        # Thumbs up/down detection (orientation-independent)
+        def get_thumb_gesture():
+            if not thumb_ext:
+                return None
+            if fingers_extended > 0:
+                return None
+
+            # Thumb direction vector
+            thumb_vec = (thumb_tip[0] - thumb_mcp[0], thumb_tip[1] - thumb_mcp[1])
+            thumb_mag = (thumb_vec[0]**2 + thumb_vec[1]**2) ** 0.5
+            if thumb_mag < palm_size * 0.2:
+                return None
+
+            # Check if thumb is perpendicular to palm (pointing away from fingers)
+            # Dot product with palm_dir should be small (perpendicular)
+            thumb_dir = normalize(thumb_vec)
+            alignment = abs(dot(thumb_dir, palm_dir))
+
+            if alignment < 0.5:  # Thumb is roughly perpendicular to palm
+                # Check if pointing up or down (screen coordinates)
+                if thumb_vec[1] < -palm_size * 0.2:  # Pointing up
+                    return "thumbs_up"
+                elif thumb_vec[1] > palm_size * 0.2:  # Pointing down
+                    return "thumbs_down"
+            return None
+
+        # ========== Gesture Recognition ==========
+
+        # 1. STOP - Open palm (all/most fingers extended)
+        if all_fingers >= 4 and fingers_extended >= 3:
+            return "stop"
+
+        # 2. THUMBS UP/DOWN - Only thumb extended
+        thumb_gesture = get_thumb_gesture()
+        if thumb_gesture:
+            return thumb_gesture
+
+        # 3. GO/FIST - All fingers closed
+        if fingers_extended == 0 and not thumb_ext:
+            return "go"
+
+        # 4. POINTING - Only index finger extended
+        if index_ext and not middle_ext and not ring_ext and not pinky_ext:
+            direction = get_pointing_direction()
+            if direction == "left":
+                return "left"
+            elif direction == "right":
+                return "right"
+            elif direction == "up":
+                return "forward"
+            elif direction == "down":
+                return "backward"
+            return "point"
+
+        # 5. PEACE/TWO - Index and middle extended
+        if index_ext and middle_ext and not ring_ext and not pinky_ext:
+            return "peace"
+
+        # 6. THREE - Index, middle, ring extended
+        if index_ext and middle_ext and ring_ext and not pinky_ext:
+            return "three"
+
+        # 7. FOUR - All except thumb
+        if index_ext and middle_ext and ring_ext and pinky_ext and not thumb_ext:
+            return "four"
+
+        # 8. OK sign - Thumb and index tips close together
+        thumb_index_dist = dist(thumb_tip, index_tip)
+        if thumb_index_dist < palm_size * 0.35:
+            if middle_ext or ring_ext:  # Other fingers extended
+                return "ok"
+
+        # 9. ROCK (pinky and index only) - "I love you" or rock sign
+        if index_ext and pinky_ext and not middle_ext and not ring_ext:
+            return "rock"
 
         return "unknown"
 
@@ -318,27 +493,49 @@ class GestureDetector(Node):
         return gesture, hand_center, frame
 
     def _control_robot(self, gesture, hand_center, frame_width):
-        """Control robot based on gesture"""
+        """
+        Control robot based on gesture.
+
+        Gesture commands:
+        - stop: Stop the robot (open palm)
+        - go: Move forward (fist)
+        - left: Turn left (point left)
+        - right: Turn right (point right)
+        - forward: Move forward (point up)
+        - backward: Move backward (point down)
+        - thumbs_up: Follow mode toggle
+        - peace: Speed boost
+        """
         cmd = Twist()
 
-        if gesture == "fist":
-            # Stop
-            pass
-        elif gesture == "open_palm":
+        if gesture == "stop":
+            # Open palm - STOP
+            cmd.linear.x = 0.0
+            cmd.angular.z = 0.0
+        elif gesture == "go":
+            # Fist - GO forward
             cmd.linear.x = self.linear_speed
-        elif gesture == "point_left" or gesture == "left":
+        elif gesture == "left":
+            # Point left - Turn left
             cmd.angular.z = self.angular_speed
-        elif gesture == "point_right" or gesture == "right":
+        elif gesture == "right":
+            # Point right - Turn right
             cmd.angular.z = -self.angular_speed
+        elif gesture == "forward":
+            # Point up - Move forward
+            cmd.linear.x = self.linear_speed
+        elif gesture == "backward":
+            # Point down - Move backward
+            cmd.linear.x = -self.linear_speed * 0.5
         elif gesture == "thumbs_up":
-            # Enable follow mode (handled elsewhere)
+            # Thumbs up - Follow mode (handled elsewhere)
             pass
-        elif gesture == "center" and hand_center:
-            # Move toward hand position
-            error = (hand_center[0] - frame_width / 2) / (frame_width / 2)
-            cmd.angular.z = -error * self.angular_speed
-            if abs(error) < 0.3:
-                cmd.linear.x = self.linear_speed * 0.5
+        elif gesture == "peace":
+            # Peace sign - Fast forward
+            cmd.linear.x = self.linear_speed * 1.5
+        elif gesture == "three":
+            # Three fingers - Medium speed forward + slight turn
+            cmd.linear.x = self.linear_speed * 0.7
 
         self.cmd_pub.publish(cmd)
 
